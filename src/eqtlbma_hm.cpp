@@ -1488,59 +1488,67 @@ void Controller::estimate_profile_ci_grids(const double & tick,
   double curr_log10_obs_lik;
   vector<double> grid_mle(grid_wts_);
   
+  omp_set_num_threads(nb_threads_);
+ 
   for(size_t i = 0; i < grid_wts_.size(); ++i){
-    right_grids_[i] = grid_mle[i];
-    left_grids_[i] = grid_mle[i];
+    left_grids_[i] = (grid_mle[i] - tick > 0) ? grid_mle[i] - tick : 0;
+    right_grids_[i] = (grid_mle[i] + tick < 1) ? grid_mle[i] + tick : 1;
     double cp_mle = grid_mle[i];
     double st = 1 - cp_mle;
-    while(left_grids_[i] >= 0){
-      left_grids_[i] -= tick;
-      if(left_grids_[i] < 0){
-        left_grids_[i] = 0;
-        break;
-      }
+    int sstop = left_grids_[i] == 0;
+#pragma omp parallel private(curr_log10_obs_lik)
+    while(!sstop){
       double diff = cp_mle - left_grids_[i];
+#pragma omp critical
       for(size_t j = 0; j < grid_wts_.size(); ++j){
-        if(j == i)
-          continue;
-        grid_wts_[j] = grid_mle[j] + diff*grid_mle[j]/st;
+        grid_wts_[j] = (i == j) ? left_grids_[i] : grid_mle[j] + diff*grid_mle[j]/st;
       }
-      grid_wts_[i] = left_grids_[i];
       curr_log10_obs_lik = compute_log10_obs_lik(new_pi0_, grid_wts_,
                                                  new_config_prior_,
                                                  new_type_prior_,
                                                  new_subgroup_prior_, true);
       if(curr_log10_obs_lik / log10(exp(1)) 
          < max_l10_obs_lik / log10(exp(1)) - 2.0){
-        left_grids_[i] += tick;
-        break;
+        sstop = 1;
+      } else {
+        left_grids_[i] -= tick;
+        if(left_grids_[i] < 0){
+          left_grids_[i] = 0;
+          sstop = 1;
+        }
       }
+#pragma omp flush(sstop)
     }
-    while(right_grids_[i] <= 1){
-      right_grids_[i] += tick;
-      if(right_grids_[i] > 1){
-        right_grids_[i] = 1;
-        break;
-      }
+    sstop = right_grids_[i] == 1;
+#pragma omp parallel private(curr_log10_obs_lik)
+    while(!sstop){
+      // right_grids_[i] += tick;
+      // if(right_grids_[i] > 1){
+      //   right_grids_[i] = 1;
+      //   break;
+      // }
       double diff = cp_mle - right_grids_[i];
+#pragma omp critical
       for(size_t j = 0; j < grid_wts_.size(); ++j){
-        if(j == i)
-          continue;
-        grid_wts_[j] = grid_mle[j] + diff*grid_mle[j]/st;
+        grid_wts_[j] = (i == j) ? right_grids_[i] : grid_mle[j] + diff*grid_mle[j]/st;
       }
-      grid_wts_[i] = right_grids_[i];
       curr_log10_obs_lik = compute_log10_obs_lik(new_pi0_, grid_wts_,
                                                  new_config_prior_,
                                                  new_type_prior_,
                                                  new_subgroup_prior_, true);
       if(curr_log10_obs_lik / log10(exp(1))
          < max_l10_obs_lik / log10(exp(1)) - 2.0){
-        right_grids_[i] -= tick;
-        break;
+        sstop = 1;
+      } else {
+        right_grids_[i] += tick;
+        if(right_grids_[i] > 1){
+          right_grids_[i] = 1;
+          sstop = 1;
+        }
       }
+#pragma omp flush(sstop)
     }
   }
-  
   grid_wts_ = grid_mle;
 }
 

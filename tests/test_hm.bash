@@ -125,7 +125,7 @@ function calc_obs_res () {
 	--gridS grid_phi2_oma2_with-configs.txt.gz \
 	-v 1 >& stdout_bf
     $pathToHm --data obs_bf_l10abfs_raw.txt.gz --nsubgrp 3 --dim 7 --ngrid 10 \
-    	--out obs_hm.txt.gz --getbf --getci >& stdout_hm
+    	--out obs_hm.txt.gz --getbf --getci --thread 4 >& stdout_hm
     zcat obs_hm.txt.gz | grep "#grid" | cut -f2 > obs_grid_probas.txt
     zcat obs_hm.txt.gz | grep "#config" | awk '{split($1,a,"."); print a[2]"\t"$2}' > obs_config_probas.txt
     zcat obs_hm.txt.gz | grep "#" | sed 's/#//g' > obs_file_for_ci.txt
