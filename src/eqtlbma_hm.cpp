@@ -1510,7 +1510,9 @@ void Controller::estimate_profile_ci_grids(const double & tick,
       if(curr_log10_obs_lik / log10(exp(1)) 
          < max_l10_obs_lik / log10(exp(1)) - 2.0){
         sstop = 1;
-      } else {
+      } else 
+#pragma omp critical
+      {
         left_grids_[i] -= tick;
         if(left_grids_[i] < 0){
           left_grids_[i] = 0;
@@ -1522,11 +1524,6 @@ void Controller::estimate_profile_ci_grids(const double & tick,
     sstop = right_grids_[i] == 1;
 #pragma omp parallel private(curr_log10_obs_lik)
     while(!sstop){
-      // right_grids_[i] += tick;
-      // if(right_grids_[i] > 1){
-      //   right_grids_[i] = 1;
-      //   break;
-      // }
       double diff = cp_mle - right_grids_[i];
 #pragma omp critical
       for(size_t j = 0; j < grid_wts_.size(); ++j){
@@ -1539,7 +1536,9 @@ void Controller::estimate_profile_ci_grids(const double & tick,
       if(curr_log10_obs_lik / log10(exp(1))
          < max_l10_obs_lik / log10(exp(1)) - 2.0){
         sstop = 1;
-      } else {
+      } else 
+#pragma omp critical
+      {
         right_grids_[i] += tick;
         if(right_grids_[i] > 1){
           right_grids_[i] = 1;
