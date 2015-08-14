@@ -1348,16 +1348,14 @@ void Controller::run_EM()
 void Controller::estimate_profile_ci_pi0(const double & tick,
                                          const double & max_l10_obs_lik)
 {
+  omp_set_num_threads(nb_threads_);
+
   double pi0_mle = pi0_, curr_log10_obs_lik;
-  left_pi0_ = pi0_;
-  right_pi0_ = pi0_;
-  
-  while(left_pi0_ >= 0){
-    left_pi0_ -= tick;
-    if(left_pi0_ < 0){
-      left_pi0_ = 0;
-      break;
-    }
+  left_pi0_ = (pi0_ - tick > 0) ? pi0_ - tick : 0;
+  right_pi0_ = (pi0_ + tick < 1) ? pi0_ + tick : 1;
+  int sstop = left_pi0_ == 0;
+#pragma omp parallel private(curr_log10_obs_lik)
+  while(!sstop){
     pi0_ = left_pi0_;
     curr_log10_obs_lik = compute_log10_obs_lik(pi0_, new_grid_wts_,
                                                new_config_prior_,
@@ -1365,16 +1363,22 @@ void Controller::estimate_profile_ci_pi0(const double & tick,
                                                new_subgroup_prior_, true);
     if(curr_log10_obs_lik / log10(exp(1))
        < max_l10_obs_lik / log10(exp(1)) - 2.0){  
-      left_pi0_ += tick;
-      break;
-    }    
-  }
-  while(right_pi0_ <= 1){
-    right_pi0_ += tick;
-    if(right_pi0_ > 1){
-      right_pi0_ = 1;
-      break;
+      sstop = 1;
+#pragma omp flush(sstop, pi0_)
+    } else 
+#pragma omp critical
+    {
+      left_pi0_ -= tick;
+      if(left_pi0_ < 0){
+        left_pi0_ = 0;
+        sstop = 1;
+#pragma omp flush(sstop, pi0_)
+      }
     }
+  }
+  sstop = right_pi0_ == 1;
+#pragma omp parallel private(curr_log10_obs_lik)
+  while(!sstop){
     pi0_ = right_pi0_;  
     curr_log10_obs_lik = compute_log10_obs_lik(pi0_, new_grid_wts_,
                                                new_config_prior_,
@@ -1382,73 +1386,88 @@ void Controller::estimate_profile_ci_pi0(const double & tick,
                                                new_subgroup_prior_, true);
     if(curr_log10_obs_lik / log10(exp(1))
        < max_l10_obs_lik / log10(exp(1)) - 2.0){
+      sstop = 1;
+#pragma omp flush(sstop, pi0_)
+    } else 
+#pragma omp critical
+    {
       right_pi0_ -= tick;
-      break;
+      if(right_pi0_ > 1){
+        right_pi0_ = 1;
+        sstop = 1;
+#pragma omp flush(sstop, pi0_)
+      }
     }
   }
-  
   pi0_ = pi0_mle;
 }
 
 void Controller::estimate_profile_ci_configs(const double & tick,
                                              const double & max_l10_obs_lik)
 {
+  omp_set_num_threads(nb_threads_);
+
   double curr_log10_obs_lik;
   vector<double> config_mle(config_prior_);
   
   for(size_t i = 0 ; i < config_prior_.size(); ++i){
-    right_configs_[i] = config_mle[i];
-    left_configs_[i] = config_mle[i];
+    left_configs_[i] = (config_mle[i] - tick > 0) ? config_mle[i] - tick : 0;
+    right_configs_[i] = (config_mle[i] + tick < 1) ? config_mle[i] + tick : 1;
     double cp_mle = config_mle[i];
     double st = 1 - cp_mle;
-    while(left_configs_[i] >= 0){
-      left_configs_[i] -= tick;
-      if(left_configs_[i] < 0){
-        left_configs_[i] = 0;
-        break;
-      }
+    int sstop = left_configs_[i] == 0;
+#pragma omp parallel private(curr_log10_obs_lik)
+    while(!sstop){
       double diff = cp_mle - left_configs_[i];
       for(size_t j = 0; j < config_prior_.size(); ++j){
-        if(j == i)
-          continue;
-        config_prior_[j] = config_mle[j] + diff*config_mle[j]/st;
+        config_prior_[j] = (i == j) ? left_configs_[i] : config_mle[j] + diff*config_mle[j]/st;
       }
-      config_prior_[i] = left_configs_[i];
       curr_log10_obs_lik = compute_log10_obs_lik(new_pi0_, new_grid_wts_,
                                                  config_prior_,
                                                  new_type_prior_,
                                                  new_subgroup_prior_, true);
       if(curr_log10_obs_lik / log10(exp(1))
          < max_l10_obs_lik / log10(exp(1)) - 2.0){
-        left_configs_[i] += tick;
-        break;
+        sstop = 1;
+#pragma omp flush(sstop, config_prior_)
+      } else
+#pragma omp critical
+      {
+        left_configs_[i] -= tick;
+        if(left_configs_[i] < 0){
+          left_configs_[i] = 0;
+          sstop = 1;
+#pragma omp flush(sstop, config_prior_)
+        }
       }
     }
-    while(right_configs_[i] <= 1){
-      right_configs_[i] += tick;
-      if(right_configs_[i] > 1){
-        right_configs_[i] = 1;
-        break;
-      }
+    sstop = right_configs_[i] == 1;
+#pragma omp parallel private(curr_log10_obs_lik)
+    while(!sstop){
       double diff = cp_mle - right_configs_[i];
       for(size_t j = 0; j < config_prior_.size(); ++j){
-        if(j == i)
-          continue;
-        config_prior_[j] = config_mle[j] + diff*config_mle[j]/st;
+        config_prior_[j] = (i == j) ? right_configs_[i] : config_mle[j] + diff*config_mle[j]/st;
       }
-      config_prior_[i] = right_configs_[i];
       curr_log10_obs_lik = compute_log10_obs_lik(new_pi0_, new_grid_wts_,
                                                  config_prior_,
                                                  new_type_prior_,
                                                  new_subgroup_prior_, true);
       if(curr_log10_obs_lik / log10(exp(1))
          < max_l10_obs_lik / log10(exp(1)) - 2.0){
-        right_configs_[i] -= tick;
-        break;
+        sstop = 1;
+#pragma omp flush(sstop, config_prior_)
+      } else
+#pragma omp critical
+      {
+        right_configs_[i] += tick;
+        if(right_configs_[i] > 1){
+          right_configs_[i] = 1;
+          sstop = 1;
+#pragma omp flush(sstop, config_prior_)
+        }
       }
     }
   }
-  
   config_prior_ = config_mle;
 }
 
@@ -1499,7 +1518,6 @@ void Controller::estimate_profile_ci_grids(const double & tick,
 #pragma omp parallel private(curr_log10_obs_lik)
     while(!sstop){
       double diff = cp_mle - left_grids_[i];
-#pragma omp critical
       for(size_t j = 0; j < grid_wts_.size(); ++j){
         grid_wts_[j] = (i == j) ? left_grids_[i] : grid_mle[j] + diff*grid_mle[j]/st;
       }
@@ -1510,6 +1528,7 @@ void Controller::estimate_profile_ci_grids(const double & tick,
       if(curr_log10_obs_lik / log10(exp(1)) 
          < max_l10_obs_lik / log10(exp(1)) - 2.0){
         sstop = 1;
+#pragma omp flush(sstop, grid_wts_)
       } else 
 #pragma omp critical
       {
@@ -1517,15 +1536,14 @@ void Controller::estimate_profile_ci_grids(const double & tick,
         if(left_grids_[i] < 0){
           left_grids_[i] = 0;
           sstop = 1;
+#pragma omp flush(sstop, grid_wts_)
         }
       }
-#pragma omp flush(sstop)
     }
     sstop = right_grids_[i] == 1;
 #pragma omp parallel private(curr_log10_obs_lik)
     while(!sstop){
       double diff = cp_mle - right_grids_[i];
-#pragma omp critical
       for(size_t j = 0; j < grid_wts_.size(); ++j){
         grid_wts_[j] = (i == j) ? right_grids_[i] : grid_mle[j] + diff*grid_mle[j]/st;
       }
@@ -1536,6 +1554,7 @@ void Controller::estimate_profile_ci_grids(const double & tick,
       if(curr_log10_obs_lik / log10(exp(1))
          < max_l10_obs_lik / log10(exp(1)) - 2.0){
         sstop = 1;
+#pragma omp flush(sstop, grid_wts_)
       } else 
 #pragma omp critical
       {
@@ -1543,9 +1562,9 @@ void Controller::estimate_profile_ci_grids(const double & tick,
         if(right_grids_[i] > 1){
           right_grids_[i] = 1;
           sstop = 1;
+#pragma omp flush(sstop, grid_wts_)
         }
       }
-#pragma omp flush(sstop)
     }
   }
   grid_wts_ = grid_mle;
