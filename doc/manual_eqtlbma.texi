@@ -871,7 +871,7 @@ Note that all parameters should be present in the file.
 The option @option{--rand} can be used to randomly initialize the parameters at the beginning of the EM.
 To make inference replicable, we can use the option @option{seed}.
 
-The option @option{--tresh} can be given the threshold to terminate the EM algorithm.
+The option @option{--thresh} can be given the threshold to terminate the EM algorithm.
 That is, if the log-likelihood increases less than this threshold, the iterations stop.
 The default value is set at 0.05.
 

@@ -1163,6 +1163,80 @@ namespace quantgen {
   }
 
   double CalcLog10AbfMvlr(
+    const gsl_matrix * betas_g_hat,
+    const gsl_matrix * Sigma_hat,
+    const gsl_matrix * Vg,
+    const gsl_matrix * Wg,
+    const bool debug/*=false*/)
+  {
+    double log10_abf = NaN;
+    gsl_matrix * tmpWg = gsl_matrix_alloc(Wg->size1, Wg->size2);
+    gsl_matrix_memcpy (tmpWg, Wg); // copy Wg to tmp in order to mutate it
+    
+    size_t S = tmpWg->size1; // nb of subgroups
+    gsl_matrix * Vg_inv = gsl_matrix_alloc(S, S);
+    mygsl_linalg_invert(Vg, Vg_inv);
+  
+    gsl_matrix * bVg = gsl_matrix_alloc(1, S);
+    gsl_blas_dgemm(CblasTrans, CblasNoTrans, 1.0, betas_g_hat, Vg_inv, 0.0, bVg);
+  
+    // update tmpWg for the ES model
+    gsl_matrix * tmp1 = mygsl_matrix_diagalloc(Sigma_hat, 0.0);
+    mygsl_matrix_pow(tmp1, 0.5);
+    gsl_matrix * tmp2 = gsl_matrix_alloc(S, S);
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, tmp1, tmpWg, 0.0, tmp2);
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, tmp2, tmp1, 0.0, tmpWg);
+#ifdef DEBUG
+    if(debug){cerr<<"tmpWg="<<endl;print_matrix(tmpWg, tmpWg->size1, tmpWg->size2);}
+#endif
+  
+    gsl_matrix * tmp3 = gsl_matrix_alloc(S, S);
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, Vg_inv, tmpWg, 0.0, tmp3);
+    gsl_matrix * ivw = gsl_matrix_alloc(S, S);
+    gsl_matrix_set_identity(ivw);
+    gsl_matrix_add(ivw, tmp3);
+    gsl_matrix * ivw_lu = mygsl_matrix_alloc(ivw);
+    gsl_permutation * perm = gsl_permutation_alloc(S);
+    int signum;
+    gsl_linalg_LU_decomp(ivw_lu, perm, &signum);
+  
+    log10_abf = - 0.5 * gsl_linalg_LU_lndet(ivw_lu);
+  
+    gsl_matrix * tmp4 = gsl_matrix_alloc(1, S);
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, bVg, tmpWg, 0.0, tmp4);
+    gsl_matrix * ivw_inv = gsl_matrix_alloc(S, S);
+    mygsl_linalg_invert(ivw, ivw_inv);
+    gsl_matrix * tmp5 = gsl_matrix_alloc(1, S);
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, tmp4, ivw_inv, 0.0, tmp5);
+    gsl_matrix * tmp6 = gsl_matrix_alloc(1, 1);
+    gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, tmp5, bVg, 0.0, tmp6);
+  
+    log10_abf += 0.5 * gsl_matrix_get(tmp6, 0, 0);
+  
+    log10_abf /= log(10);
+#ifdef DEBUG
+    if(debug){fprintf(stderr, "log10_abf=%e\n", log10_abf);}
+#endif
+  
+    gsl_matrix_free(Vg_inv);
+    gsl_matrix_free(bVg);
+    gsl_matrix_free(tmpWg);
+    gsl_matrix_free(tmp1);
+    gsl_matrix_free(tmp2);
+    gsl_matrix_free(tmp3);
+    gsl_matrix_free(ivw);
+    gsl_matrix_free(ivw_lu);
+    gsl_permutation_free(perm);
+    gsl_matrix_free(tmp4);
+    gsl_matrix_free(ivw_inv);
+    gsl_matrix_free(tmp5);
+    gsl_matrix_free(tmp6);
+  
+    return log10_abf;
+  }
+
+
+  double CalcLog10AbfMvlr(
     const gsl_vector * gamma,
     const gsl_matrix * betas_g_hat,
     const gsl_matrix * Sigma_hat,
@@ -1171,7 +1245,6 @@ namespace quantgen {
     const double oma2,
     const bool debug/*=false*/)
   {
-    double log10_abf = NaN;
 #ifdef DEBUG
     if(debug){
       fprintf(stderr, "phi2=%e oma2=%e\n", phi2, oma2);
@@ -1192,66 +1265,9 @@ namespace quantgen {
     gsl_matrix * gamma2 = gsl_matrix_alloc(S, S);
     mygsl_linalg_outer(gamma, gamma, gamma2);
     gsl_matrix_mul_elements(Wg, gamma2);
-  
-    gsl_matrix * Vg_inv = gsl_matrix_alloc(S, S);
-    mygsl_linalg_invert(Vg, Vg_inv);
-  
-    gsl_matrix * bVg = gsl_matrix_alloc(1, S);
-    gsl_blas_dgemm(CblasTrans, CblasNoTrans, 1.0, betas_g_hat, Vg_inv, 0.0, bVg);
-  
-    // update Wg for the ES model
-    gsl_matrix * tmp1 = mygsl_matrix_diagalloc(Sigma_hat, 0.0);
-    mygsl_matrix_pow(tmp1, 0.5);
-    gsl_matrix * tmp2 = gsl_matrix_alloc(S, S);
-    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, tmp1, Wg, 0.0, tmp2);
-    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, tmp2, tmp1, 0.0, Wg);
-#ifdef DEBUG
-    if(debug){cerr<<"Wg="<<endl;print_matrix(Wg, Wg->size1, Wg->size2);}
-#endif
-  
-    gsl_matrix * tmp3 = gsl_matrix_alloc(S, S);
-    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, Vg_inv, Wg, 0.0, tmp3);
-    gsl_matrix * ivw = gsl_matrix_alloc(S, S);
-    gsl_matrix_set_identity(ivw);
-    gsl_matrix_add(ivw, tmp3);
-    gsl_matrix * ivw_lu = mygsl_matrix_alloc(ivw);
-    gsl_permutation * perm = gsl_permutation_alloc(S);
-    int signum;
-    gsl_linalg_LU_decomp(ivw_lu, perm, &signum);
-  
-    log10_abf = - 0.5 * gsl_linalg_LU_lndet(ivw_lu);
-  
-    gsl_matrix * tmp4 = gsl_matrix_alloc(1, S);
-    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, bVg, Wg, 0.0, tmp4);
-    gsl_matrix * ivw_inv = gsl_matrix_alloc(S, S);
-    mygsl_linalg_invert(ivw, ivw_inv);
-    gsl_matrix * tmp5 = gsl_matrix_alloc(1, S);
-    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, tmp4, ivw_inv, 0.0, tmp5);
-    gsl_matrix * tmp6 = gsl_matrix_alloc(1, 1);
-    gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, tmp5, bVg, 0.0, tmp6);
-  
-    log10_abf += 0.5 * gsl_matrix_get(tmp6, 0, 0);
-  
-    log10_abf /= log(10);
-#ifdef DEBUG
-    if(debug){fprintf(stderr, "log10_abf=%e\n", log10_abf);}
-#endif
-  
-    gsl_matrix_free(Wg);
+    double log10_abf = CalcLog10AbfMvlr(betas_g_hat, Sigma_hat, Vg, Wg, debug);
     gsl_matrix_free(gamma2);
-    gsl_matrix_free(Vg_inv);
-    gsl_matrix_free(bVg);
-    gsl_matrix_free(tmp1);
-    gsl_matrix_free(tmp2);
-    gsl_matrix_free(tmp3);
-    gsl_matrix_free(ivw);
-    gsl_matrix_free(ivw_lu);
-    gsl_permutation_free(perm);
-    gsl_matrix_free(tmp4);
-    gsl_matrix_free(ivw_inv);
-    gsl_matrix_free(tmp5);
-    gsl_matrix_free(tmp6);
-  
+    gsl_matrix_free(Wg);
     return log10_abf;
   }
 

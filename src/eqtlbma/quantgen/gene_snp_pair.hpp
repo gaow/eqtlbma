@@ -276,6 +276,14 @@ namespace quantgen {
     const double phi2,
     const double oma2,
     const bool debug=false);
+  
+  double CalcLog10AbfMvlr(
+    const gsl_matrix * betas_g_hat,
+    const gsl_matrix * Sigma_hat,
+    const gsl_matrix * Vg,
+    const gsl_matrix * Wg,
+    const bool debug=false);
+
 
   bool operator==(const GeneSnpPair& lhs, const GeneSnpPair& rhs);
   bool operator!=(const GeneSnpPair& lhs, const GeneSnpPair& rhs);
