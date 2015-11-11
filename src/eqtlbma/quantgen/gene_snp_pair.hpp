@@ -1,6 +1,6 @@
 /** \file gene_snp_pair.hpp
  *
- *  `GeneSnpPair' is a class 
+ *  `GeneSnpPair' is a class
  *  Copyright (C) 2013 Timothee Flutre
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -41,32 +41,32 @@
 #include "irls/IRLS.h"
 
 namespace quantgen {
-  
+
   // forward declaration, e.g. in GetSstatsOneSbgrp()
   class Gene;
   class Snp;
   class Covariates;
-  
+
   class GeneSnpPair {
   private:
     std::string gene_name_;
     std::string snp_name_;
     std::string error_model_; // uvlr or mvlr or hybrid (optional)
-    
+
     std::map<std::string,size_t> subgroup2samplesize_;
     std::map<std::string,size_t> subgroup2nbcovariates_;
     std::map<std::string,double> subgroup2pve_;
     std::map<std::string,double> subgroup2sigmahat_;
     std::map<std::string,std::vector<double> > subgroup2sstats_; // 0:betahat ; 1:sebetahat ; 2:betapval
-  
+
     // raw ABFs
     // keys: 'gen', 'gen-fix', 'gen-maxh', '1-2-3', '1', '2', etc
     std::map<std::string,std::vector<double> > unweighted_abfs_;
-  
+
     // averaged ABFs (over a grid for all, over configurations for some)
     // keys: same as above
     std::map<std::string,double> weighted_abfs_;
-  
+
     void FillStlContainers(
       const Samples & samples,
       const Gene & gene,
@@ -129,7 +129,7 @@ namespace quantgen {
       gsl_matrix * & tXs1s2Xs1s2,
       gsl_matrix * & Sigma_s1s2_hat_full,
       gsl_matrix * & Sigma_s1s2_hat_null);
-  
+
   public:
     GeneSnpPair(void);
     GeneSnpPair(const std::string & gene_name, const std::string & snp_name);
@@ -236,6 +236,13 @@ namespace quantgen {
       const gsl_matrix * betas_g_hat,
       const gsl_matrix * Sigma_hat,
       const gsl_matrix * Vg);
+    void CalcAbfsHybridForCustomizedPriors(
+      const gsl_matrix * betas_g_hat,
+      const gsl_matrix * Sigma_hat,
+      const gsl_matrix * Vg,
+      const std::vector<gsl_matrix> & Wgs,
+      const std::vector<double> & Wg_grids,
+      const std::vector<std::string> & Wg_names);
     void CalcAbfsHybrid(
       const std::vector<std::string> & subgroups,
       const Samples & samples,
@@ -276,12 +283,13 @@ namespace quantgen {
     const double phi2,
     const double oma2,
     const bool debug=false);
-  
+
   double CalcLog10AbfMvlr(
     const gsl_matrix * betas_g_hat,
     const gsl_matrix * Sigma_hat,
     const gsl_matrix * Vg,
     const gsl_matrix * Wg,
+    const double Wg_scalar=1,
     const bool debug=false);
 
 
