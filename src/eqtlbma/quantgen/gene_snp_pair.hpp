@@ -172,6 +172,7 @@ namespace quantgen {
       const std::vector<std::string> & subgroups);
     void CalcBMAlite(const std::vector<std::string> & subgroups);
     void CalcBMA(const std::vector<std::string> & subgroups);
+    void CalcBMACustomizedPriors(const std::vector<std::string> & Wg_names);
     void CalcAbfsUvlr(
       const std::vector<std::string> & subgroups,
       const std::string & whichBfs,
@@ -253,6 +254,9 @@ namespace quantgen {
       const std::string & whichBfs,
       const Grid & iGridL,
       const Grid & iGridS,
+      const std::vector<gsl_matrix> & Wgs,
+      const std::vector<double> & Wg_grids,
+      const std::vector<std::string> & Wg_names,
       const double & propFitSigma,
       const gsl_permutation * perm);
     size_t GetNbSubgroups(void) const { return subgroup2samplesize_.size(); };

@@ -1,6 +1,6 @@
 /** \file gene.cpp
  *
- *  `Gene' is a class 
+ *  `Gene' is a class
  *  Copyright (C) 2013-2015 Timothée Flutre
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -26,16 +26,16 @@ using namespace std;
 using namespace utils;
 
 namespace quantgen {
-  
+
   Gene::Gene(void)
   {
   }
-  
+
   Gene::Gene(const string & name)
   {
     name_ = name;
   }
-  
+
   Gene::Gene(const string & name, const string & chromosome,
 	     const string & start, const string & end)
   {
@@ -44,7 +44,7 @@ namespace quantgen {
     start_ = atol(start.c_str()) + 1; // in BED format, start starts at 0
     end_ = atol(end.c_str());
   }
-  
+
   bool operator==(const Gene& lhs, const Gene& rhs)
   {
     return(lhs.GetName().compare(rhs.GetName()) == 0
@@ -53,7 +53,7 @@ namespace quantgen {
 	   && lhs.GetEnd() == rhs.GetEnd()
 	   && lhs.GetNbSubgroups() == rhs.GetNbSubgroups());
   }
-  
+
   bool operator!=(const Gene& lhs, const Gene& rhs)
   {
     return !operator==(lhs,rhs);
@@ -67,7 +67,7 @@ namespace quantgen {
       exit(EXIT_FAILURE);
     }
     return((lhs.GetStart() < rhs.GetStart()) ||
-	   (lhs.GetStart() == rhs.GetStart() && 
+	   (lhs.GetStart() == rhs.GetStart() &&
 	    lhs.GetEnd() < rhs.GetEnd() ));
   }
 
@@ -275,27 +275,30 @@ namespace quantgen {
     const float & prop_cov_errors,
     const int & verbose)
   {
+    vector<gsl_matrix> Wgs;
+    vector<string> Wg_names;
+    vector<double> Wg_grids;
     const Snp * pt_snp = NULL;
     vector<GeneSnpPair>::iterator it_gsp;
     gsl_permutation * perm = NULL;
-    
+
     // To use OpenMP here, need to have a temporary vector shared between all
     // threads, replacing gene_snp_pairs_ inside the loop.
     // As this requires more memory, I prefer not to use OpenMP here.
     for(size_t idx_snp = 0; idx_snp < snps_.size(); ++idx_snp){
-    
+
       pt_snp = snps_[idx_snp];
       if(verbose > 0)
 	cout << name_ << " (" << GetNbSubgroups() << " subgroups) versus "
 	     << pt_snp->name_ << " (" << pt_snp->GetNbSubgroups()
 	     << " subgroups)" << endl;
-    
+
       if(hasDataNotSstats)
 	it_gsp = AddGeneSnpPair(pt_snp->name_, analysis);
       else
 	it_gsp = FindGeneSnpPair(idx_snp);
       perm = NULL;
-    
+
       if(analysis.compare("sep") == 0 ||
 	 (analysis.compare("join") == 0 && error_model.compare("uvlr") == 0)){
 	if(hasDataNotSstats){
@@ -326,7 +329,7 @@ namespace quantgen {
 	else if(error_model.compare("hybrid") == 0)
 	  it_gsp->CalcAbfsHybrid(subgroups, samples, *this, *pt_snp,
 				 covariates, need_qnorm, whichBfs, iGridL,
-				 iGridS, prop_cov_errors, perm);
+         iGridS, Wgs, Wg_grids, Wg_names, prop_cov_errors, perm);
       }
     }
   }
@@ -341,8 +344,8 @@ namespace quantgen {
     return gene_snp_pairs_.end();
   }
 
-/** \brief 
- *  \note nbperms_total is usually 10000, nbperms_sofar may be different 
+/** \brief
+ *  \note nbperms_total is usually 10000, nbperms_sofar may be different
  *  because of the trick
  */
   double Gene::CalcPermutationPvalue(const size_t & nbperms_total,
@@ -390,27 +393,27 @@ namespace quantgen {
     const gsl_rng * rngTrick)
   {
     gsl_permutation * perm = NULL;
-  
+
     perm = gsl_permutation_calloc(samples.GetTotalNbSamples());
     if(perm == NULL){
       cerr << "ERROR: can't allocate memory for the permutation" << endl;
       exit(EXIT_FAILURE);
     }
-  
+
     subgroup2nbperms_.insert(make_pair(subgroup, 0));
     subgroup2permpval_.insert(make_pair(subgroup, 1));
-  
+
     vector<double> pvals_perm; // per SNP
     double pval_perm_min;
     bool shuffle_only = false;
-  
+
     FindMinTruePvaluePerSubgroup(subgroup);
     size_t nb_all_permutations_ = nb_permutations;
     for(size_t perm_id = 0; perm_id < nb_all_permutations_; ++perm_id){
       gsl_ran_shuffle(rngPerm, perm->data, perm->size, sizeof(size_t));
       if(shuffle_only)
 	continue;
-    
+
       pvals_perm.assign(snps_.size(), 1.0);
       pval_perm_min = 1;
 
@@ -425,7 +428,7 @@ namespace quantgen {
 	  pvals_perm[idx_snp] = gene_snp_pair.GetBetapvalGeno(subgroup);
 	}
       }
-    
+
       pval_perm_min = *min_element(pvals_perm.begin(), pvals_perm.end());
       if(isNan(pval_perm_min)) {
         nb_permutations--;
@@ -441,11 +444,11 @@ namespace quantgen {
 	  shuffle_only = true;
       }
     }
-  
+
     subgroup2permpval_[subgroup] = CalcPermutationPvalue(
       nb_permutations, subgroup2nbperms_[subgroup], subgroup2permpval_[subgroup],
       trick_cutoff, rngTrick);
-  
+
     gsl_permutation_free(perm);
   }
 
@@ -474,7 +477,7 @@ namespace quantgen {
     return subgroup2trueminpval_.find(subgroup)->second;
   }
 
-/** \brief Retrieve the lowest genotype p-value over SNPs and subgroups 
+/** \brief Retrieve the lowest genotype p-value over SNPs and subgroups
  *  of the given gene
  */
   void Gene::FindMinTruePvalueAllSubgroups(void)
@@ -503,30 +506,30 @@ namespace quantgen {
     const gsl_rng * rngTrick)
   {
     gsl_permutation * perm = NULL;
-  
+
     perm = gsl_permutation_calloc(samples.GetTotalNbSamples());
     if(perm == NULL){
       cerr << "ERROR: can't allocate memory for the permutation" << endl;
       exit(EXIT_FAILURE);
     }
-  
+
     nbpermutations_sep_allsbgrps_ = 0;
     pval_perm_sep_allsbgrps_ = 1;
-  
+
     vector<double> pvals_perm; // per SNP over subgroups
     double pval_perm_min;
     bool shuffle_only = false;
-  
+
     FindMinTruePvalueAllSubgroups();
     size_t nb_all_permutations_ = nb_permutations;
     for(size_t perm_id = 0; perm_id < nb_all_permutations_; ++perm_id){
       gsl_ran_shuffle(rngPerm, perm->data, perm->size, sizeof(size_t));
       if(shuffle_only)
 	continue;
-    
+
       pvals_perm.assign(snps_.size(), 1.0);
       pval_perm_min = 1;
-    
+
 #pragma omp parallel for shared(pvals_perm)
       for(int idx_snp = 0; idx_snp < (int) snps_.size(); ++idx_snp){
 	const Snp * pt_snp = snps_[idx_snp];
@@ -545,7 +548,7 @@ namespace quantgen {
 	  pvals_perm[idx_snp] = pval_perm_min_sbgrp;
 	}
       }
-    
+
       pval_perm_min = *min_element(pvals_perm.begin(), pvals_perm.end());
       if (isNan(pval_perm_min)) {
         nb_permutations--;
@@ -561,11 +564,11 @@ namespace quantgen {
 	  shuffle_only = true;
       }
     }
-  
+
     pval_perm_sep_allsbgrps_ = CalcPermutationPvalue(
       nb_permutations, nbpermutations_sep_allsbgrps_, pval_perm_sep_allsbgrps_,
       trick_cutoff, rngTrick);
-  
+
     gsl_permutation_free(perm);
   }
 
@@ -612,23 +615,26 @@ namespace quantgen {
 				  const gsl_rng * rngPerm,
 				  const gsl_rng * rngTrick)
   {
+    vector<gsl_matrix> Wgs;
+    vector<string> Wg_names;
+    vector<double> Wg_grids;
     gsl_permutation * perm = NULL;
-  
+
     perm = gsl_permutation_calloc(samples.GetTotalNbSamples());
     if(perm == NULL){
       cerr << "ERROR: can't allocate memory for the permutation" << endl;
       exit(EXIT_FAILURE);
     }
-  
+
     nbpermutations_join_ = 0;
     pval_perm_join_ = 1;
     l10_abf_perm_med_ = NaN;
-  
+
     vector<double> l10_abfs_perm_snps, // per SNP
       l10_abfs_perms; // for the median
     double l10_abf_perm_max, l10_abf_perm_avg;
     bool shuffle_only = false;
-  
+
     if(useMaxBfOverSnps)
       FindMaxTrueL10Abf(whichPermBf);
     else
@@ -639,13 +645,13 @@ namespace quantgen {
       gsl_ran_shuffle(rngPerm, perm->data, perm->size, sizeof(size_t));
       if(shuffle_only)
 	continue;
-    
+
       l10_abfs_perm_snps.assign(snps_.size(), 0.0);
       if(useMaxBfOverSnps)
 	l10_abf_perm_max = - numeric_limits<double>::infinity();
       else
 	l10_abf_perm_avg = NaN;
-    
+
 #pragma omp parallel for shared(l10_abfs_perm_snps)
       for(int idx_snp = 0; idx_snp < (int) snps_.size(); ++idx_snp){
 	const Snp * pt_snp = snps_[idx_snp];
@@ -669,11 +675,11 @@ namespace quantgen {
 	  else if(error_model.compare("hybrid") == 0)
 	    gene_snp_pair.CalcAbfsHybrid(subgroups, samples, *this, *pt_snp,
 					 covariates, need_qnorm, whichPermBf,
-					 iGridL, iGridS, prop_cov_errors, perm);
+           iGridL, iGridS, Wgs, Wg_grids, Wg_names, prop_cov_errors, perm);
 	}
 	l10_abfs_perm_snps[idx_snp] = gene_snp_pair.GetWeightedAbf(whichPermBf);
       }
-    
+
       if(useMaxBfOverSnps){
 	l10_abf_perm_max = *max_element(l10_abfs_perm_snps.begin(),
 					l10_abfs_perm_snps.end());
@@ -705,14 +711,14 @@ namespace quantgen {
 	  shuffle_only = true;
       }
     }
-  
+
     pval_perm_join_ = CalcPermutationPvalue(
       nb_permutations, nbpermutations_join_, pval_perm_join_, trick_cutoff,
       rngTrick);
-  
+
     l10_abf_perm_med_ = median(l10_abfs_perms.begin(),
 			       l10_abfs_perms.begin() + nbpermutations_join_ + 1);
-  
+
     gsl_permutation_free(perm);
   }
 

@@ -601,6 +601,18 @@ namespace quantgen {
 					  l10_abfs.size())));
   }
 
+  void GeneSnpPair::CalcBMACustomizedPriors(const vector<string> & Wg_names)
+  {
+    vector<double> l10_abfs(Wg_names.size());
+    vector<double> weights(Wg_names.size(), 1.0 / (double) Wg_names.size());
+
+    for(size_t m = 0; m < Wg_names.size(); ++m)
+      l10_abfs[m] = weighted_abfs_[Wg_names[m]];
+    weighted_abfs_.insert(
+      make_pair("customized", log10_weighted_sum(&(l10_abfs[0]), &(weights[0]),
+					  l10_abfs.size())));
+  }
+
   void GeneSnpPair::CalcAbfsUvlr(const vector<string> & subgroups,
 				 const string & whichBfs,
 				 const Grid & iGridL,
@@ -1412,7 +1424,7 @@ namespace quantgen {
    * matrix, every grid value will be applied as weight (scalar)
    * to the prior
    * \param Wg_names contains a vector of strings of the name of
-   * each prior matrix
+   * each prior matrix, of same length as Wgs
    */
   void GeneSnpPair::CalcAbfsHybridForCustomizedPriors(
     const gsl_matrix * betas_g_hat,
@@ -1433,9 +1445,9 @@ namespace quantgen {
                                        Vg, Wg,
                                        Wg_grids[w]);
       }
-      unweighted_abfs_.insert(make_pair(Wg_names[m].c_str(), l10_abfs));
+      unweighted_abfs_.insert(make_pair(Wg_names[m], l10_abfs));
       weighted_abfs_.insert(
-        make_pair(Wg_names[m].c_str(), log10_weighted_sum(&(l10_abfs[0]),
+        make_pair(Wg_names[m], log10_weighted_sum(&(l10_abfs[0]),
 							  l10_abfs.size())));
      }
      delete Wg;
@@ -1451,6 +1463,9 @@ namespace quantgen {
 				   const string & whichBfs,
 				   const Grid & iGridL,
 				   const Grid & iGridS,
+           const vector<gsl_matrix> & Wgs,
+           const vector<double> & Wg_grids,
+           const vector<string> & Wg_names,
 				   const double & propFitSigma,
 				   const gsl_permutation * perm)
   {
@@ -1472,7 +1487,12 @@ namespace quantgen {
       CalcBMAlite(subgroups);
       CalcBMA(subgroups);
     }
-
+    else if(whichBfs.compare("customized") == 0){
+      CalcAbfsHybridForCustomizedPriors(betas_g_hat, Sigma_hat, Vg, Wgs, Wg_grids,
+                                        Wg_names);
+      CalcBMAlite(subgroups);
+      CalcBMACustomizedPriors(Wg_names);
+    }
     gsl_matrix_free(betas_g_hat);
     gsl_matrix_free(Sigma_hat);
     gsl_matrix_free(Vg);
