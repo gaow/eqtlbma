@@ -241,7 +241,7 @@ namespace quantgen {
       const gsl_matrix * betas_g_hat,
       const gsl_matrix * Sigma_hat,
       const gsl_matrix * Vg,
-      const std::vector<gsl_matrix> & Wgs,
+      const std::vector<gsl_matrix*> & Wgs,
       const std::vector<double> & Wg_grids,
       const std::vector<std::string> & Wg_names);
     void CalcAbfsHybrid(
@@ -254,7 +254,7 @@ namespace quantgen {
       const std::string & whichBfs,
       const Grid & iGridL,
       const Grid & iGridS,
-      const std::vector<gsl_matrix> & Wgs,
+      const std::vector<gsl_matrix*> & Wgs,
       const std::vector<double> & Wg_grids,
       const std::vector<std::string> & Wg_names,
       const double & propFitSigma,
@@ -293,7 +293,7 @@ namespace quantgen {
     const gsl_matrix * Sigma_hat,
     const gsl_matrix * Vg,
     const gsl_matrix * Wg,
-    const double Wg_scalar=1,
+    const double Wg_scalar=1.0,
     const bool debug=false);
 
 

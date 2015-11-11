@@ -1,6 +1,6 @@
 /** \file gene.hpp
  *
- *  `Gene' is a class 
+ *  `Gene' is a class
  *  Copyright (C) 2013-2015 Timothée Flutre
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -40,9 +40,9 @@
 #include "quantgen/grid.hpp"
 
 namespace quantgen {
-  
+
   class GeneSnpPair; // forward declaration
-  
+
   class Gene {
   private:
     std::string name_;
@@ -50,29 +50,29 @@ namespace quantgen {
     size_t start_; // 1-based coordinate
     size_t end_; // idem
     std::string strand_; // + or -, not always specified
-    
+
     std::map<std::string,std::vector<double> > subgroup2explevels_;
-    
+
     std::vector<const Snp*> snps_; // cis snps
     std::vector<GeneSnpPair> gene_snp_pairs_; // contain results
-    
+
     // test statistic: min P-value over SNPs in each subgroup
     std::map<std::string,double> subgroup2permpval_;
     std::map<std::string,size_t> subgroup2nbperms_;
     std::map<std::string,double> subgroup2trueminpval_;
-    
+
     // test statistic: min P-value over SNPs across subgroups
     size_t nbpermutations_sep_allsbgrps_;
     double pval_perm_sep_allsbgrps_;
     double pval_true_min_allsbgrps_;
-    
+
     // test statistic: ABF (max or avg over SNPs)
     size_t nbpermutations_join_;
     double pval_perm_join_;
     double l10_abf_true_max_;
     double l10_abf_true_avg_;
     double l10_abf_perm_med_;
-    
+
     void FindMinTruePvaluePerSubgroup(const std::string & subgroup);
     void FindMinTruePvalueAllSubgroups(void);
     void FindMaxTrueL10Abf(const std::string & whichPermBf);
@@ -82,7 +82,7 @@ namespace quantgen {
 				 const double & nbperms_more_extreme,
 				 const size_t & trick_cutoff,
 				 const gsl_rng * rng) const;
-    
+
   public:
     Gene(void);
     Gene(const std::string & name);
@@ -133,6 +133,7 @@ namespace quantgen {
 			     const Covariates & covariates,
 			     const Grid & iGridL,
 			     const Grid & iGridS,
+           const PriorMatrices & iPriorM,
 			     const std::string & whichBfs,
 			     const std::string & covErrors,
 			     const float & propFitSigma,
@@ -175,6 +176,7 @@ namespace quantgen {
 			      const Covariates & covariates,
 			      const Grid & iGridL,
 			      const Grid & iGridS,
+            const PriorMatrices & iPriorM,
 			      const std::string & covErrors,
 			      const float & propFitSigma,
 			      size_t & nb_permutations,
@@ -189,17 +191,17 @@ namespace quantgen {
     double GetTrueL10Abf(const bool & use_max_bf) const;
     double GetMedianPermL10Abf(void) const { return l10_abf_perm_med_; };
   };
-  
+
   bool operator==(const Gene& lhs, const Gene& rhs);
   bool operator!=(const Gene& lhs, const Gene& rhs);
   bool operator< (const Gene& lhs, const Gene& rhs);
   bool operator> (const Gene& lhs, const Gene& rhs);
   bool operator<=(const Gene& lhs, const Gene& rhs);
   bool operator>=(const Gene& lhs, const Gene& rhs);
-  
+
   // 'lt' means '<', not '<=' (that would be 'le')
   bool pt_gene_lt_pt_gene(const Gene* pt_lhs, const Gene* pt_rhs);
-  
+
 } //namespace quantgen
 
 #endif // QUANTGEN_GENE_HPP

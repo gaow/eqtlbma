@@ -1185,7 +1185,7 @@ namespace quantgen {
     double log10_abf = NaN;
     gsl_matrix * tmpWg = gsl_matrix_alloc(Wg->size1, Wg->size2);
     gsl_matrix_memcpy(tmpWg, Wg); // copy Wg to tmp and weight it
-    if (Wg_scalar != 1)
+    if (Wg_scalar != 1 && Wg_scalar != 0)
       gsl_matrix_scale(tmpWg, Wg_scalar);
 
     size_t S = tmpWg->size1; // nb of subgroups
@@ -1280,7 +1280,8 @@ namespace quantgen {
     gsl_matrix * gamma2 = gsl_matrix_alloc(S, S);
     mygsl_linalg_outer(gamma, gamma, gamma2);
     gsl_matrix_mul_elements(Wg, gamma2);
-    double log10_abf = CalcLog10AbfMvlr(betas_g_hat, Sigma_hat, Vg, Wg, debug);
+    double Wg_scalar = 1.0;
+    double log10_abf = CalcLog10AbfMvlr(betas_g_hat, Sigma_hat, Vg, Wg, Wg_scalar, debug);
     gsl_matrix_free(gamma2);
     gsl_matrix_free(Wg);
     return log10_abf;
@@ -1430,19 +1431,17 @@ namespace quantgen {
     const gsl_matrix * betas_g_hat,
     const gsl_matrix * Sigma_hat,
     const gsl_matrix * Vg,
-    const vector<gsl_matrix> & Wgs,
+    const vector<gsl_matrix*> & Wgs,
     const vector<double> & Wg_grids,
     const vector<string> & Wg_names)
   {
     vector<double> l10_abfs(Wg_grids.size(), 0.0);
-    const gsl_matrix * Wg;
     for(size_t m = 0; m < Wgs.size(); ++m) {
-      Wg = &Wgs[m];
       l10_abfs.assign(Wg_grids.size(), 0.0);
       for (size_t w = 0; w < Wg_grids.size(); ++w) {
         l10_abfs[w] = CalcLog10AbfMvlr(betas_g_hat,
                                        Sigma_hat,
-                                       Vg, Wg,
+                                       Vg, Wgs[m],
                                        Wg_grids[w]);
       }
       unweighted_abfs_.insert(make_pair(Wg_names[m], l10_abfs));
@@ -1450,7 +1449,6 @@ namespace quantgen {
         make_pair(Wg_names[m], log10_weighted_sum(&(l10_abfs[0]),
 							  l10_abfs.size())));
      }
-     delete Wg;
   }
 
 
@@ -1463,7 +1461,7 @@ namespace quantgen {
 				   const string & whichBfs,
 				   const Grid & iGridL,
 				   const Grid & iGridS,
-           const vector<gsl_matrix> & Wgs,
+           const vector<gsl_matrix*> & Wgs,
            const vector<double> & Wg_grids,
            const vector<string> & Wg_names,
 				   const double & propFitSigma,
@@ -1488,6 +1486,7 @@ namespace quantgen {
       CalcBMA(subgroups);
     }
     else if(whichBfs.compare("customized") == 0){
+      CalcAbfsHybridForSingletons(iGridS, subgroups, betas_g_hat, Sigma_hat, Vg);
       CalcAbfsHybridForCustomizedPriors(betas_g_hat, Sigma_hat, Vg, Wgs, Wg_grids,
                                         Wg_names);
       CalcBMAlite(subgroups);

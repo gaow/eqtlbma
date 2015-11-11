@@ -1,6 +1,6 @@
 /** \file grid.hpp
  *
- *  `Grid' is a class 
+ *  `Grid' is a class
  *  Copyright (C) 2013 Timothee Flutre
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -25,6 +25,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <gsl/gsl_matrix.h>
 
 #include "utils/utils_io.hpp"
 
@@ -41,6 +42,24 @@ namespace quantgen {
     Grid();
     Grid(const std::string & gridFile, const bool & makeFixMaxh, const int & verbose);
     size_t size (void) const { return phi2s.size(); }
+  };
+
+  class PriorMatrices {
+  public:
+    std::vector<gsl_matrix*> Wgs;
+    std::vector<double> Wg_scalars;
+    std::vector<std::string> Wg_names;
+    PriorMatrices();
+    PriorMatrices(const std::string & file_pattern,
+                  const std::string & scalar_file,
+                  const size_t & matrix_dimension,
+                  const int & verbose);
+    size_t size (void) const { return Wgs.size(); }
+    ~PriorMatrices() {
+      for (size_t m = 0; m < Wgs.size(); ++m)
+        if (Wgs[m])
+          gsl_matrix_free(Wgs[m]);
+    }
   };
 
 } // namespace quantgen

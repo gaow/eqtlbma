@@ -270,14 +270,12 @@ namespace quantgen {
     const Covariates & covariates,
     const Grid & iGridL,
     const Grid & iGridS,
+    const PriorMatrices & iPriorM,
     const string & whichBfs,
     const string & error_model,
     const float & prop_cov_errors,
     const int & verbose)
   {
-    vector<gsl_matrix> Wgs;
-    vector<string> Wg_names;
-    vector<double> Wg_grids;
     const Snp * pt_snp = NULL;
     vector<GeneSnpPair>::iterator it_gsp;
     gsl_permutation * perm = NULL;
@@ -329,7 +327,8 @@ namespace quantgen {
 	else if(error_model.compare("hybrid") == 0)
 	  it_gsp->CalcAbfsHybrid(subgroups, samples, *this, *pt_snp,
 				 covariates, need_qnorm, whichBfs, iGridL,
-         iGridS, Wgs, Wg_grids, Wg_names, prop_cov_errors, perm);
+         iGridS, iPriorM.Wgs, iPriorM.Wg_scalars, iPriorM.Wg_names,
+         prop_cov_errors, perm);
       }
     }
   }
@@ -605,6 +604,7 @@ namespace quantgen {
 				  const Covariates & covariates,
 				  const Grid & iGridL,
 				  const Grid & iGridS,
+          const PriorMatrices & iPriorM,
 				  const string & error_model,
 				  const float & prop_cov_errors,
 				  size_t & nb_permutations,
@@ -615,9 +615,6 @@ namespace quantgen {
 				  const gsl_rng * rngPerm,
 				  const gsl_rng * rngTrick)
   {
-    vector<gsl_matrix> Wgs;
-    vector<string> Wg_names;
-    vector<double> Wg_grids;
     gsl_permutation * perm = NULL;
 
     perm = gsl_permutation_calloc(samples.GetTotalNbSamples());
@@ -675,7 +672,8 @@ namespace quantgen {
 	  else if(error_model.compare("hybrid") == 0)
 	    gene_snp_pair.CalcAbfsHybrid(subgroups, samples, *this, *pt_snp,
 					 covariates, need_qnorm, whichPermBf,
-           iGridL, iGridS, Wgs, Wg_grids, Wg_names, prop_cov_errors, perm);
+           iGridL, iGridS, iPriorM.Wgs, iPriorM.Wg_scalars, iPriorM.Wg_names,
+           prop_cov_errors, perm);
 	}
 	l10_abfs_perm_snps[idx_snp] = gene_snp_pair.GetWeightedAbf(whichPermBf);
       }
