@@ -739,6 +739,29 @@ namespace quantgen {
     }
   }
 
+  void GeneSnpPair::CalcAbfsMvlrForCustomizedPriors(
+    const PriorMatrices & Pm,
+    const double & propFitSigma,
+    vector<vector<double> > & Y,
+    vector<vector<double> > & Xg,
+    vector<vector<double> > & Xc)
+  {
+    vector<double> l10_abfs;
+    for(size_t m = 0; m < Pm.Wgs.size(); ++m) {
+      vector<vector<int> > vvGamma(1, vector<int>(Y.size(), 1));
+      MVLR iMvlr;
+      iMvlr.set_sigma_option(propFitSigma);
+      iMvlr.init(Y, Xg, Xc);
+      l10_abfs = iMvlr.compute_log10_ABF_vec(vvGamma, Pm.Wgs[m], Pm.Wg_scalars);
+      unweighted_abfs_.insert(
+        make_pair(Pm.Wg_names[m], l10_abfs));
+      weighted_abfs_.insert(
+        make_pair(Pm.Wg_names[m], log10_weighted_sum(&(l10_abfs[0]),
+							  l10_abfs.size())));
+    }
+  }
+
+
   void GeneSnpPair::CalcAbfsMvlr(const vector<string> & subgroups,
 				 const Samples & samples,
 				 const Gene & gene,
@@ -748,6 +771,7 @@ namespace quantgen {
 				 const string & whichBfs,
 				 const Grid & iGridL,
 				 const Grid & iGridS,
+         const PriorMatrices & Pm,
 				 const double & propFitSigma,
 				 const gsl_permutation * perm)
   {
@@ -766,6 +790,12 @@ namespace quantgen {
       CalcAbfsMvlrForEachConfiguration(iGridS, propFitSigma, Y, Xg, Xc[0]);
       CalcBMAlite(subgroups);
       CalcBMA(subgroups);
+    }
+    else if(whichBfs.compare("customized") == 0){
+      CalcAbfsMvlrForSingletons(iGridS, propFitSigma, Y, Xg, Xc[0]);
+      CalcAbfsMvlrForCustomizedPriors(Pm, propFitSigma, Y, Xg, Xc[0]);
+      CalcBMAlite(subgroups);
+      CalcBMACustomizedPriors(Pm.Wg_names);
     }
   }
 
@@ -1419,34 +1449,32 @@ namespace quantgen {
   }
 
   /** \brief
-   * \param Wgs contains a vector of customized prior matrices
+   * \param m.Wgs contains a vector of customized prior matrices
    * provided as input data
-   * \param Wg_grids contains a vector of grids. For each prior
+   * \param m.Wg_scalars contains a vector of grids. For each prior
    * matrix, every grid value will be applied as weight (scalar)
    * to the prior
-   * \param Wg_names contains a vector of strings of the name of
+   * \param m.Wg_names contains a vector of strings of the name of
    * each prior matrix, of same length as Wgs
    */
   void GeneSnpPair::CalcAbfsHybridForCustomizedPriors(
     const gsl_matrix * betas_g_hat,
     const gsl_matrix * Sigma_hat,
     const gsl_matrix * Vg,
-    const vector<gsl_matrix*> & Wgs,
-    const vector<double> & Wg_grids,
-    const vector<string> & Wg_names)
+    const PriorMatrices & Pm)
   {
-    vector<double> l10_abfs(Wg_grids.size(), 0.0);
-    for(size_t m = 0; m < Wgs.size(); ++m) {
-      l10_abfs.assign(Wg_grids.size(), 0.0);
-      for (size_t w = 0; w < Wg_grids.size(); ++w) {
+    vector<double> l10_abfs(Pm.Wg_scalars.size(), 0.0);
+    for(size_t m = 0; m < Pm.Wgs.size(); ++m) {
+      l10_abfs.assign(Pm.Wg_scalars.size(), 0.0);
+      for (size_t w = 0; w < Pm.Wg_scalars.size(); ++w) {
         l10_abfs[w] = CalcLog10AbfMvlr(betas_g_hat,
                                        Sigma_hat,
-                                       Vg, Wgs[m],
-                                       Wg_grids[w]);
+                                       Vg, Pm.Wgs[m],
+                                       Pm.Wg_scalars[w]);
       }
-      unweighted_abfs_.insert(make_pair(Wg_names[m], l10_abfs));
+      unweighted_abfs_.insert(make_pair(Pm.Wg_names[m], l10_abfs));
       weighted_abfs_.insert(
-        make_pair(Wg_names[m], log10_weighted_sum(&(l10_abfs[0]),
+        make_pair(Pm.Wg_names[m], log10_weighted_sum(&(l10_abfs[0]),
 							  l10_abfs.size())));
      }
   }
@@ -1461,9 +1489,7 @@ namespace quantgen {
 				   const string & whichBfs,
 				   const Grid & iGridL,
 				   const Grid & iGridS,
-           const vector<gsl_matrix*> & Wgs,
-           const vector<double> & Wg_grids,
-           const vector<string> & Wg_names,
+           const PriorMatrices & Pm,
 				   const double & propFitSigma,
 				   const gsl_permutation * perm)
   {
@@ -1487,10 +1513,9 @@ namespace quantgen {
     }
     else if(whichBfs.compare("customized") == 0){
       CalcAbfsHybridForSingletons(iGridS, subgroups, betas_g_hat, Sigma_hat, Vg);
-      CalcAbfsHybridForCustomizedPriors(betas_g_hat, Sigma_hat, Vg, Wgs, Wg_grids,
-                                        Wg_names);
+      CalcAbfsHybridForCustomizedPriors(betas_g_hat, Sigma_hat, Vg, Pm);
       CalcBMAlite(subgroups);
-      CalcBMACustomizedPriors(Wg_names);
+      CalcBMACustomizedPriors(Pm.Wg_names);
     }
     gsl_matrix_free(betas_g_hat);
     gsl_matrix_free(Sigma_hat);

@@ -196,6 +196,12 @@ namespace quantgen {
       std::vector<std::vector<double> > & Y,
       std::vector<std::vector<double> > & Xg,
       std::vector<std::vector<double> > & Xc);
+    void CalcAbfsMvlrForCustomizedPriors(
+      const PriorMatrices & Pm,
+      const double & propFitSigma,
+      std::vector<std::vector<double> > & Y,
+      std::vector<std::vector<double> > & Xg,
+      std::vector<std::vector<double> > & Xc);
     void CalcAbfsMvlr(
       const std::vector<std::string> & subgroups,
       const Samples & samples,
@@ -206,6 +212,7 @@ namespace quantgen {
       const std::string & whichBfs,
       const Grid & iGridL,
       const Grid & iGridS,
+      const PriorMatrices & Pm,
       const double & propFitSigma,
       const gsl_permutation * perm);
     void CalcSstatsHybrid(
@@ -241,9 +248,7 @@ namespace quantgen {
       const gsl_matrix * betas_g_hat,
       const gsl_matrix * Sigma_hat,
       const gsl_matrix * Vg,
-      const std::vector<gsl_matrix*> & Wgs,
-      const std::vector<double> & Wg_grids,
-      const std::vector<std::string> & Wg_names);
+      const PriorMatrices & Pm);
     void CalcAbfsHybrid(
       const std::vector<std::string> & subgroups,
       const Samples & samples,
@@ -254,9 +259,7 @@ namespace quantgen {
       const std::string & whichBfs,
       const Grid & iGridL,
       const Grid & iGridS,
-      const std::vector<gsl_matrix*> & Wgs,
-      const std::vector<double> & Wg_grids,
-      const std::vector<std::string> & Wg_names,
+      const PriorMatrices & Pm,
       const double & propFitSigma,
       const gsl_permutation * perm);
     size_t GetNbSubgroups(void) const { return subgroup2samplesize_.size(); };

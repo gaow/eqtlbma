@@ -323,12 +323,11 @@ namespace quantgen {
 	if(error_model.compare("mvlr") == 0)
 	  it_gsp->CalcAbfsMvlr(subgroups, samples, *this, *pt_snp,
 			       covariates, need_qnorm, whichBfs, iGridL,
-			       iGridS, prop_cov_errors, perm);
+             iGridS, iPriorM, prop_cov_errors, perm);
 	else if(error_model.compare("hybrid") == 0)
 	  it_gsp->CalcAbfsHybrid(subgroups, samples, *this, *pt_snp,
 				 covariates, need_qnorm, whichBfs, iGridL,
-         iGridS, iPriorM.Wgs, iPriorM.Wg_scalars, iPriorM.Wg_names,
-         prop_cov_errors, perm);
+         iGridS, iPriorM, prop_cov_errors, perm);
       }
     }
   }
@@ -668,12 +667,11 @@ namespace quantgen {
 	  if(error_model.compare("mvlr") == 0)
 	    gene_snp_pair.CalcAbfsMvlr(subgroups, samples, *this, *pt_snp,
 				       covariates, need_qnorm, whichPermBf,
-				       iGridL, iGridS, prop_cov_errors, perm);
+               iGridL, iGridS, iPriorM, prop_cov_errors, perm);
 	  else if(error_model.compare("hybrid") == 0)
 	    gene_snp_pair.CalcAbfsHybrid(subgroups, samples, *this, *pt_snp,
 					 covariates, need_qnorm, whichPermBf,
-           iGridL, iGridS, iPriorM.Wgs, iPriorM.Wg_scalars, iPriorM.Wg_names,
-           prop_cov_errors, perm);
+           iGridL, iGridS, iPriorM, prop_cov_errors, perm);
 	}
 	l10_abfs_perm_snps[idx_snp] = gene_snp_pair.GetWeightedAbf(whichPermBf);
       }
