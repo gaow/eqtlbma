@@ -10,3 +10,5 @@
 * think about using HDF5 files to efficiently store and retrieve results
 * handle categorical covariates with more than 2 levels in eqtlbma_bf
 * add unitary tests in C++ (include cppunit? or tpunitpp?)
+
+* allow --gridM to exceed --gridL

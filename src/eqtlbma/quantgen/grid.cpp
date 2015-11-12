@@ -98,7 +98,7 @@ namespace quantgen {
         exit(EXIT_FAILURE);
         }
         for (size_t i = 0; i < tokens.size(); ++i) {
-          gsl_matrix_set(priorM, nb_line, i, atof(tokens[0].c_str()));
+          gsl_matrix_set(priorM, nb_line, i, atof(tokens[i].c_str()));
         }
         nb_line += 1;
       }
@@ -122,7 +122,12 @@ namespace quantgen {
         cout << "number of customized prior matrices: "
              << Wgs.size() << endl;
     }
-
+#ifdef DEBUG
+    for (size_t m = 0; m < Wgs.size(); ++m) {
+      cerr<<"Wg" << m << "="<<endl;
+      utils::print_matrix(Wgs[m], Wgs[m]->size1, Wgs[m]->size2);
+    }
+#endif
     // load prior matrix scalars
     gzFile gridStream;
     vector<string> tokens;
@@ -148,6 +153,11 @@ namespace quantgen {
     if (verbose > 0) {
         cout << "customized prior scalar grid size: " << Wg_scalars.size() << endl;
     }
+#ifdef DEBUG
+    for (size_t w = 0; w < Wg_scalars.size(); ++w)
+      cerr << Wg_scalars[w] << '\t';
+    cerr << endl;
+#endif
   }
 
 } //namespace quantgen

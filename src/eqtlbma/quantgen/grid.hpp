@@ -28,6 +28,7 @@
 #include <gsl/gsl_matrix.h>
 
 #include "utils/utils_io.hpp"
+#include "utils/utils_math.hpp"
 
 namespace quantgen {
 

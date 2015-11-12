@@ -151,6 +151,7 @@ void help(char ** argv)
        << "\t\twildcard character (*) for file names is supported (file pattern string must be double quoted!)" << endl
        << "      --gridM\tfile with grid of scalars for customized prior matrices" << endl
        << "\t\tthis is a one column file containing all scalar values" << endl
+       << "\t\tthis grid should be 'smaller' than gridL" << endl
        << "\t\trequired when --priorM is specified" << endl
        << "      --bfs\twhich Bayes Factors to compute for the joint analysis" << endl
        << "\t\tonly the Laplace-approximated BF from Wen and Stephens (AoAS 2013) is implemented" << endl
@@ -1177,6 +1178,7 @@ void writeResAbfsRaw(
   const size_t & nb_subgroups,
   const Grid & iGridL,
   const Grid & iGridS,
+  const PriorMatrices & iPriorM,
   const string & bfs,
   const string & header_opt)
 {
@@ -1285,10 +1287,28 @@ void writeResAbfsRaw(
       	    if(gsl_combination_next(comb) != GSL_SUCCESS)
       	      break;
       	  }
-      	  if(bfs == "sin")
-      	    break;
       	  gsl_combination_free(comb);
+          if(bfs == "sin" || bfs == "customized")
+      	    break;
       	}
+      }
+      // write the BFs for each customized prior (with customized grid)
+      if(bfs == "customized") {
+        for (size_t m = 0; m < iPriorM.Wg_names.size(); ++m) {
+          ssTxt.str("");
+      	  ssTxt << it_gene->first
+                << sep << it_pair->GetSnpName();
+          ssTxt << sep << iPriorM.Wg_names[m];
+          for (size_t j = 0; j < iGridL.size(); ++j) {
+            if (j < iPriorM.Wg_scalars.size())
+      		ssTxt << sep << *(it_pair->BeginUnweightedAbf(iPriorM.Wg_names[m]) + j);
+      	      else
+      		ssTxt << sep << NaN;
+          }
+      	  ssTxt << "\n";
+      	  ++nb_lines;
+      	  gzwriteLine(outStream, ssTxt.str(), ssOutFile.str(), nb_lines);
+        }
       }
     }
   }
@@ -1301,6 +1321,7 @@ void writeResAbfsAvgGrids(
   const map<string, Gene>::iterator & itG_begin,
   const map<string, Gene>::iterator & itG_end,
   const size_t & nb_subgroups,
+  const vector<string> & customized_priors,
   const string & bfs,
   const string & error_model,
   const string & header_opt)
@@ -1324,10 +1345,12 @@ void writeResAbfsAvgGrids(
     ssTxt << sep << "l10abf.gen"
           << sep << "l10abf.gen.fix"
           << sep << "l10abf.gen.maxh";
-    if(bfs == "sin" || bfs == "all")
+    if(bfs == "sin" || bfs == "all" || bfs == "customized")
       ssTxt << sep << "l10abf.gen.sin";
     if(bfs == "all")
       ssTxt << sep << "l10abf.all";
+    if(bfs == "customized")
+      ssTxt << sep << "l10abf.customized";
     if(bfs != "gen"){
       for(size_t k = 1; k <= nb_subgroups; ++k){
         comb = gsl_combination_calloc(nb_subgroups, k);
@@ -1344,8 +1367,13 @@ void writeResAbfsAvgGrids(
             break;
         }
         gsl_combination_free(comb);
-        if(bfs == "sin")
+        if(bfs == "sin" || bfs == "customized")
           break;
+      }
+    }
+    if(bfs == "customized") {
+      for (size_t m = 0; m < customized_priors.size(); ++m) {
+        ssTxt << sep << "l10abf." << customized_priors[m];
       }
     }
     ssTxt << endl;
@@ -1371,10 +1399,12 @@ void writeResAbfsAvgGrids(
 	    << sep << it_pair->GetWeightedAbf("gen")
 	    << sep << it_pair->GetWeightedAbf("gen-fix")
 	    << sep << it_pair->GetWeightedAbf("gen-maxh");
-      if(bfs == "sin" || bfs == "all")
+      if(bfs == "sin" || bfs == "all" || bfs == "customized")
 	ssTxt << sep << it_pair->GetWeightedAbf("gen-sin");
       if(bfs == "all")
 	ssTxt << sep << it_pair->GetWeightedAbf("all");
+      if(bfs == "customized")
+	ssTxt << sep << it_pair->GetWeightedAbf("customized");
       if(bfs != "gen"){
 	for(size_t k = 1; k <= nb_subgroups; ++k){
 	  comb = gsl_combination_calloc(nb_subgroups, k);
@@ -1394,9 +1424,14 @@ void writeResAbfsAvgGrids(
 	      break;
 	  }
 	  gsl_combination_free(comb);
-	  if(bfs == "sin")
+	  if(bfs == "sin" || bfs == "customized")
 	    break;
 	}
+      }
+      if (bfs == "customized") {
+        for (size_t m = 0; m < customized_priors.size(); ++m) {
+          ssTxt << sep << it_pair->GetWeightedAbf(customized_priors[m]);
+        }
       }
       ssTxt << "\n";
       ++nb_lines;
@@ -1478,6 +1513,7 @@ void writeRes(
   const string & analysis,
   const Grid & iGridL,
   const Grid & iGridS,
+  const PriorMatrices & iPriorM,
   const string & bfs,
   const size_t & nb_permutations,
   const int & perm_sep,
@@ -1502,12 +1538,13 @@ void writeRes(
                           header_opt);
   }
 
+
   if(analysis == "join"){
     writeResAbfsRaw(out_prefix, itG_begin, itG_end, subgroups.size(),
-                    iGridL, iGridS, bfs, header_opt);
+                    iGridL, iGridS, iPriorM, bfs, header_opt);
     if(save_weighted_abfs)
       writeResAbfsAvgGrids(out_prefix, itG_begin, itG_end, subgroups.size(),
-                           bfs, error_model, header_opt);
+                           iPriorM.Wg_names, bfs, error_model, header_opt);
   }
 
   if(analysis == "join" && nb_permutations > 0)
@@ -1575,13 +1612,18 @@ void run(const string & file_genopaths,
   if(gene2object.empty() || snp2object.empty())
     return;
 
+  // load grid / customized priors
   Grid iGridL(file_largegrid, true, verbose);
   Grid iGridS(file_smallgrid, false, verbose);
   PriorMatrices iPriorM(file_prior, file_prior_scalar, subgroups.size(), verbose);
+  if (iPriorM.Wg_scalars.size() > iGridL.size()) {
+    cerr << "WARNING: --gridM is larger than --gridL; thus will be truncated to the size of --gridL" << endl;
+  }
+
   // write header
   writeRes(out_prefix, save_sstats, save_weighted_abfs, subgroups,
            gene2object.begin(), gene2object.end(),
-           snp2object, analysis, iGridL, iGridS, bfs, nb_permutations,
+           snp2object, analysis, iGridL, iGridS, iPriorM, bfs, nb_permutations,
            perm_sep, error_model, seed, permbf, use_max_bf, "only");
 
   size_t countGenes = 0;
@@ -1636,8 +1678,8 @@ void run(const string & file_genopaths,
     }
     // write results
     writeRes(out_prefix, save_sstats, save_weighted_abfs, subgroups,
-             itG_begin, itG, snp2object, analysis, iGridL, iGridS, bfs,
-             nb_permutations, perm_sep, error_model, seed, permbf,
+             itG_begin, itG, snp2object, analysis, iGridL, iGridS, iPriorM,
+             bfs, nb_permutations, perm_sep, error_model, seed, permbf,
              use_max_bf, "none");
     // progress tracker
     countGenes += step_size;
