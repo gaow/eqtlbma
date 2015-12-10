@@ -27,6 +27,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <cstring>
 #include <sstream>
 #include <limits>
 using namespace std;

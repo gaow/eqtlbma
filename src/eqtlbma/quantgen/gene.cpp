@@ -384,7 +384,7 @@ namespace quantgen {
     const string & likelihood,
     const bool & need_qnorm,
     const Covariates & covariates,
-    size_t & nb_permutations,
+    const size_t & nb_permutations,
     const int & trick,
     const size_t & trick_cutoff,
     const gsl_rng * rngPerm,
@@ -406,8 +406,8 @@ namespace quantgen {
     bool shuffle_only = false;
 
     FindMinTruePvaluePerSubgroup(subgroup);
-    size_t nb_all_permutations_ = nb_permutations;
-    for(size_t perm_id = 0; perm_id < nb_all_permutations_; ++perm_id){
+    size_t nb_valid_permutations_ = nb_permutations;
+    for(size_t perm_id = 0; perm_id < nb_permutations; ++perm_id){
       gsl_ran_shuffle(rngPerm, perm->data, perm->size, sizeof(size_t));
       if(shuffle_only)
 	continue;
@@ -429,7 +429,7 @@ namespace quantgen {
 
       pval_perm_min = *min_element(pvals_perm.begin(), pvals_perm.end());
       if(isNan(pval_perm_min)) {
-        nb_permutations--;
+        nb_valid_permutations_--;
         continue;
       }
       ++subgroup2nbperms_[subgroup];
@@ -444,7 +444,7 @@ namespace quantgen {
     }
 
     subgroup2permpval_[subgroup] = CalcPermutationPvalue(
-      nb_permutations, subgroup2nbperms_[subgroup], subgroup2permpval_[subgroup],
+      nb_valid_permutations_, subgroup2nbperms_[subgroup], subgroup2permpval_[subgroup],
       trick_cutoff, rngTrick);
 
     gsl_permutation_free(perm);
@@ -497,7 +497,7 @@ namespace quantgen {
     const string & likelihood,
     const bool & need_qnorm,
     const Covariates & covariates,
-    size_t & nb_permutations,
+    const size_t & nb_permutations,
     const int & trick,
     const size_t & trick_cutoff,
     const gsl_rng * rngPerm,
@@ -519,8 +519,8 @@ namespace quantgen {
     bool shuffle_only = false;
 
     FindMinTruePvalueAllSubgroups();
-    size_t nb_all_permutations_ = nb_permutations;
-    for(size_t perm_id = 0; perm_id < nb_all_permutations_; ++perm_id){
+    size_t nb_valid_permutations_ = nb_permutations;
+    for(size_t perm_id = 0; perm_id < nb_permutations; ++perm_id){
       gsl_ran_shuffle(rngPerm, perm->data, perm->size, sizeof(size_t));
       if(shuffle_only)
 	continue;
@@ -549,7 +549,7 @@ namespace quantgen {
 
       pval_perm_min = *min_element(pvals_perm.begin(), pvals_perm.end());
       if (isNan(pval_perm_min)) {
-        nb_permutations--;
+        nb_valid_permutations_--;
         continue;
       }
       ++nbpermutations_sep_allsbgrps_;
@@ -564,7 +564,7 @@ namespace quantgen {
     }
 
     pval_perm_sep_allsbgrps_ = CalcPermutationPvalue(
-      nb_permutations, nbpermutations_sep_allsbgrps_, pval_perm_sep_allsbgrps_,
+      nb_valid_permutations_, nbpermutations_sep_allsbgrps_, pval_perm_sep_allsbgrps_,
       trick_cutoff, rngTrick);
 
     gsl_permutation_free(perm);
@@ -606,7 +606,7 @@ namespace quantgen {
           const PriorMatrices & iPriorM,
 				  const string & error_model,
 				  const float & prop_cov_errors,
-				  size_t & nb_permutations,
+				  const size_t & nb_permutations,
 				  const int & trick,
 				  const size_t & trick_cutoff,
 				  const string & whichPermBf,
@@ -636,8 +636,8 @@ namespace quantgen {
     else
       AvgTrueL10Abfs(whichPermBf);
 
-    size_t nb_all_permutations_ = nb_permutations;
-    for(size_t perm_id = 0; perm_id < nb_all_permutations_; ++perm_id){
+    size_t nb_valid_permutations_ = nb_permutations;
+    for(size_t perm_id = 0; perm_id < nb_permutations; ++perm_id){
       gsl_ran_shuffle(rngPerm, perm->data, perm->size, sizeof(size_t));
       if(shuffle_only)
 	continue;
@@ -680,7 +680,7 @@ namespace quantgen {
 	l10_abf_perm_max = *max_element(l10_abfs_perm_snps.begin(),
 					l10_abfs_perm_snps.end());
     if (isNan(l10_abf_perm_max)) {
-      nb_permutations--;
+      nb_valid_permutations_--;
       continue;
     }
     ++nbpermutations_join_;
@@ -692,7 +692,7 @@ namespace quantgen {
 	l10_abf_perm_avg = log10_weighted_sum(&(l10_abfs_perm_snps[0]),
 					      l10_abfs_perm_snps.size());
     if (isNan(l10_abf_perm_avg)) {
-      nb_permutations--;
+      nb_valid_permutations_--;
       continue;
     }
     ++nbpermutations_join_;
@@ -709,7 +709,7 @@ namespace quantgen {
     }
 
     pval_perm_join_ = CalcPermutationPvalue(
-      nb_permutations, nbpermutations_join_, pval_perm_join_, trick_cutoff,
+      nb_valid_permutations_, nbpermutations_join_, pval_perm_join_, trick_cutoff,
       rngTrick);
 
     l10_abf_perm_med_ = median(l10_abfs_perms.begin(),
