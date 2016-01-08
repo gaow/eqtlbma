@@ -271,7 +271,7 @@ namespace quantgen {
     const Grid & iGridL,
     const Grid & iGridS,
     const PriorMatrices & iPriorM,
-    const string & whichBfs,
+    const vector<string> & whichBfs,
     const string & error_model,
     const float & prop_cov_errors,
     const int & verbose)
@@ -571,7 +571,7 @@ namespace quantgen {
   }
 
 /** \brief Retrieve the highest log10(ABF) over SNPs of the given gene
- *  \note whichPermBf is 'gen', 'sin', 'gen-sin' or 'all'
+ *  \note whichPermBf is 'gen', 'gen-sin', 'customized' or 'all'
  */
   void Gene::FindMaxTrueL10Abf(const string & whichPermBf)
   {
@@ -583,7 +583,7 @@ namespace quantgen {
   }
 
 /** \brief Average the log10(ABF) over SNPs of the given gene
- *  \note whichPermBf is 'gen', 'sin', 'gen-sin' or 'all'
+ *  \note whichPermBf is 'gen', 'gen-sin', 'customized' or 'all'
  */
   void Gene::AvgTrueL10Abfs(const string & whichPermBf)
   {
@@ -648,6 +648,10 @@ namespace quantgen {
       else
 	l10_abf_perm_avg = NaN;
 
+      vector<string> whichBfs;
+      if (whichPermBf == "gen-sin") whichBfs.push_back("sin");
+      else whichBfs.push_back(whichPermBf);
+
 #pragma omp parallel for shared(l10_abfs_perm_snps)
       for(int idx_snp = 0; idx_snp < (int) snps_.size(); ++idx_snp){
 	const Snp * pt_snp = snps_[idx_snp];
@@ -659,18 +663,18 @@ namespace quantgen {
 	      gene_snp_pair.CalcSstatsOneSbgrp(samples, *this, *pt_snp,
 					       covariates, *it_sbgrp,
 					       likelihood, need_qnorm, perm);
-	  gene_snp_pair.CalcAbfsUvlr(subgroups, whichPermBf, iGridL, iGridS);
+	  gene_snp_pair.CalcAbfsUvlr(subgroups, whichBfs, iGridL, iGridS);
 	}
 	else{ // if mvlr or hybrid
 	  if(! pt_snp->HasGenotypesInAllSubgroups(subgroups))
 	    continue;
 	  if(error_model.compare("mvlr") == 0)
 	    gene_snp_pair.CalcAbfsMvlr(subgroups, samples, *this, *pt_snp,
-				       covariates, need_qnorm, whichPermBf,
+				       covariates, need_qnorm, whichBfs,
                iGridL, iGridS, iPriorM, prop_cov_errors, perm);
 	  else if(error_model.compare("hybrid") == 0)
 	    gene_snp_pair.CalcAbfsHybrid(subgroups, samples, *this, *pt_snp,
-					 covariates, need_qnorm, whichPermBf,
+					 covariates, need_qnorm, whichBfs,
            iGridL, iGridS, iPriorM, prop_cov_errors, perm);
 	}
 	l10_abfs_perm_snps[idx_snp] = gene_snp_pair.GetWeightedAbf(whichPermBf);

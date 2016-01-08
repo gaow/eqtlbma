@@ -794,7 +794,7 @@ invert_Sigma();
     construct_Gamma(indicator,noz_vec);
 
     gsl_matrix * tmpWg = gsl_matrix_alloc(Wg->size1, Wg->size2);
-    for(int i=0;i<Wg_scalars.size();i++){
+    for(size_t i=0;i<Wg_scalars.size();i++){
       gsl_matrix_memcpy(tmpWg, Wg); // copy Wg to tmp and weight it
       if (Wg_scalars[i] != 1 && Wg_scalars[i] != 0)
         gsl_matrix_scale(tmpWg, Wg_scalars[i]);

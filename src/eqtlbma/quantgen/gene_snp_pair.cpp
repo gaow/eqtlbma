@@ -18,6 +18,7 @@
  */
 
 #include <numeric>
+#include <algorithm>
 
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_combination.h>
@@ -32,6 +33,10 @@ using namespace std;
 using namespace utils;
 
 namespace quantgen {
+  inline bool has_value(const vector<string> & sarray, const string & item) {
+    return find(sarray.begin(), sarray.end(), item) != sarray.end();
+  }
+
 
   GeneSnpPair::GeneSnpPair(const string & gene_name, const string & snp_name)
   {
@@ -614,7 +619,7 @@ namespace quantgen {
   }
 
   void GeneSnpPair::CalcAbfsUvlr(const vector<string> & subgroups,
-				 const string & whichBfs,
+         const vector<string> & whichBfs,
 				 const Grid & iGridL,
 				 const Grid & iGridS)
   {
@@ -622,15 +627,16 @@ namespace quantgen {
     StandardizeSstatsAndCorrectSmallSampleSize(subgroup2stdsstats);
     CalcAbfsUvlrForConsistentConfiguration(iGridL, subgroup2stdsstats,
 					   subgroups);
-    if(whichBfs.find("sin") != string::npos) {
-      CalcAbfsUvlrForSingletons(iGridS, subgroup2stdsstats, subgroups);
-      CalcBMAlite(subgroups);
-    }
-    else if(whichBfs.compare("all") == 0) {
+    if(has_value(whichBfs, "all")) {
       CalcAbfsUvlrForEachConfiguration(iGridS, subgroup2stdsstats, subgroups);
       CalcBMAlite(subgroups);
       CalcBMA(subgroups);
     }
+    else if(has_value(whichBfs, "sin")) {
+      CalcAbfsUvlrForSingletons(iGridS, subgroup2stdsstats, subgroups);
+      CalcBMAlite(subgroups);
+    }
+
   }
 
   void GeneSnpPair::CalcAbfsMvlrForConsistentConfiguration(
@@ -768,7 +774,7 @@ namespace quantgen {
 				 const Snp & snp,
 				 const Covariates & covariates,
 				 const bool & need_qnorm,
-				 const string & whichBfs,
+         const vector<string> & whichBfs,
 				 const Grid & iGridL,
 				 const Grid & iGridS,
          const PriorMatrices & Pm,
@@ -782,20 +788,26 @@ namespace quantgen {
 		      need_qnorm, perm, Y, Xg, Xc, subgroups_with_data);
 
     CalcAbfsMvlrForConsistentConfiguration(iGridL, propFitSigma, Y, Xg, Xc[0]);
-    if(whichBfs.find("sin") != string::npos){ // can also be 'gen-sin' (permutations)
-      CalcAbfsMvlrForSingletons(iGridS, propFitSigma, Y, Xg, Xc[0]);
-      CalcBMAlite(subgroups);
-    }
-    else if(whichBfs.compare("all") == 0){
+    if(has_value(whichBfs, "all")) {
       CalcAbfsMvlrForEachConfiguration(iGridS, propFitSigma, Y, Xg, Xc[0]);
+      if (has_value(whichBfs, "customized"))
+        CalcAbfsMvlrForCustomizedPriors(Pm, propFitSigma, Y, Xg, Xc[0]);
       CalcBMAlite(subgroups);
       CalcBMA(subgroups);
+      if (has_value(whichBfs, "customized"))
+        CalcBMACustomizedPriors(Pm.Wg_names);
     }
-    else if(whichBfs.compare("customized") == 0){
-      CalcAbfsMvlrForSingletons(iGridS, propFitSigma, Y, Xg, Xc[0]);
+    else if(has_value(whichBfs, "customized")){
+      if (has_value(whichBfs, "sin"))
+        CalcAbfsMvlrForSingletons(iGridS, propFitSigma, Y, Xg, Xc[0]);
       CalcAbfsMvlrForCustomizedPriors(Pm, propFitSigma, Y, Xg, Xc[0]);
-      CalcBMAlite(subgroups);
+      if (has_value(whichBfs, "sin"))
+        CalcBMAlite(subgroups);
       CalcBMACustomizedPriors(Pm.Wg_names);
+    }
+    else if(has_value(whichBfs, "sin")){
+      CalcAbfsMvlrForSingletons(iGridS, propFitSigma, Y, Xg, Xc[0]);
+      CalcBMAlite(subgroups);
     }
   }
 
@@ -1486,7 +1498,7 @@ namespace quantgen {
 				   const Snp & snp,
 				   const Covariates & covariates,
 				   const bool & need_qnorm,
-				   const string & whichBfs,
+           const vector<string> & whichBfs,
 				   const Grid & iGridL,
 				   const Grid & iGridS,
            const PriorMatrices & Pm,
@@ -1501,22 +1513,29 @@ namespace quantgen {
 		     propFitSigma, perm, betas_g_hat, Sigma_hat, Vg);
 
     CalcAbfsHybridForConsistentConfiguration(iGridL, betas_g_hat, Sigma_hat, Vg);
-    if(whichBfs.find("sin") != string::npos){ // can also be 'gen-sin' (permutations)
-      CalcAbfsHybridForSingletons(iGridS, subgroups, betas_g_hat, Sigma_hat, Vg);
-      CalcBMAlite(subgroups);
-    }
-    else if(whichBfs.compare("all") == 0){
+    if(has_value(whichBfs, "all")) {
       CalcAbfsHybridForEachConfiguration(iGridS, subgroups, betas_g_hat, Sigma_hat,
 					 Vg);
+      if (has_value(whichBfs, "customized"))
+        CalcAbfsHybridForCustomizedPriors(betas_g_hat, Sigma_hat, Vg, Pm);
       CalcBMAlite(subgroups);
       CalcBMA(subgroups);
+      if (has_value(whichBfs, "customized"))
+        CalcBMACustomizedPriors(Pm.Wg_names);
     }
-    else if(whichBfs.compare("customized") == 0){
-      CalcAbfsHybridForSingletons(iGridS, subgroups, betas_g_hat, Sigma_hat, Vg);
+    else if(has_value(whichBfs, "customized")){
+      if (has_value(whichBfs, "sin"))
+        CalcAbfsHybridForSingletons(iGridS, subgroups, betas_g_hat, Sigma_hat, Vg);
       CalcAbfsHybridForCustomizedPriors(betas_g_hat, Sigma_hat, Vg, Pm);
-      CalcBMAlite(subgroups);
+      if (has_value(whichBfs, "sin"))
+        CalcBMAlite(subgroups);
       CalcBMACustomizedPriors(Pm.Wg_names);
     }
+    else if(has_value(whichBfs, "sin")){
+      CalcAbfsHybridForSingletons(iGridS, subgroups, betas_g_hat, Sigma_hat, Vg);
+      CalcBMAlite(subgroups);
+    }
+
     gsl_matrix_free(betas_g_hat);
     gsl_matrix_free(Sigma_hat);
     gsl_matrix_free(Vg);

@@ -34,25 +34,25 @@ using namespace std;
 using namespace utils;
 
 namespace quantgen {
-  
+
   map<string,string> loadTwoColumnFile(const string & file,
                                        const int & verbose)
   {
     map<string,string> mItems;
     if(file.empty())
       return mItems;
-    
+
     string line;
     gzFile stream;
     vector<string> tokens;
     size_t nb_lines = 0;
-    
+
     openFile(file, stream, "rb");
     if(verbose > 0)
       cout <<"load file " << file << " ..." << endl;
-    
+
     while(getline(stream, line)){
-      nb_lines++;
+      ++nb_lines;
       split(line, " \t,", tokens);
       if(tokens.size() != 2){
         cerr << "ERROR: file " << file << " should have only two columns"
@@ -64,20 +64,20 @@ namespace quantgen {
       if(mItems.find(tokens[0]) == mItems.end())
         mItems.insert(make_pair(tokens[0], tokens[1]));
     }
-    
+
     if(! gzeof(stream)){
       cerr << "ERROR: can't read successfully file "
            << file << " up to the end" << endl;
       exit (1);
     }
     closeFile(file, stream);
-    
+
     if(verbose > 0)
       cout << "items loaded: " << mItems.size() << endl;
-    
+
     return mItems;
   }
-  
+
   void loadListsGenoExplevelAndCovarFiles(
     const string & file_genopaths,
     const string & file_exppaths,
@@ -91,10 +91,10 @@ namespace quantgen {
     vector<string> & subgroups)
   {
     map<string,string>::iterator it;
-    
+
     // load paths to exp levels files
     subgroup2explevelfile = loadTwoColumnFile(file_exppaths, verbose);
-    
+
     // erase subgroups with exp levels but not to keep
     it = subgroup2explevelfile.begin();
     while(it != subgroup2explevelfile.end()){
@@ -105,10 +105,10 @@ namespace quantgen {
       else
         ++it;
     }
-    
+
     // load paths to geno files
     subgroup2genofile = loadTwoColumnFile(file_genopaths, verbose);
-    
+
     // erase subgroups with geno but no exp levels
     it = subgroup2genofile.begin();
     while(it != subgroup2genofile.end()){
@@ -117,7 +117,7 @@ namespace quantgen {
       else
         ++it;
     }
-    
+
     // erase subgroups with exp levels but no geno
     it = subgroup2explevelfile.begin();
     while(it != subgroup2explevelfile.end()){
@@ -126,8 +126,8 @@ namespace quantgen {
       else
         ++it;
     }
-    
-    // for correlated errors, check that, at least, all subgroups 
+
+    // for correlated errors, check that, at least, all subgroups
     // have genotypes in the same file
     if(error_model != "uvlr")
       for(it = subgroup2genofile.begin(); it != subgroup2genofile.end(); ++it)
@@ -136,15 +136,15 @@ namespace quantgen {
                << endl;
           exit(EXIT_FAILURE);
         }
-    
+
     // identify the names of all remaining subgroups to be considered
     for(it = subgroup2explevelfile.begin(); it != subgroup2explevelfile.end();
         ++it)
       subgroups.push_back(it->first);
-    
+
     // load paths to covariate files
     subgroup2covarfile = loadTwoColumnFile(file_covarpaths, verbose);
-    
+
     // erase subgroups with covariates but neither geno nor exp levels
     it = subgroup2covarfile.begin();
     while(it != subgroup2covarfile.end()){
@@ -152,7 +152,7 @@ namespace quantgen {
         subgroup2covarfile.erase(it++);
       else++it;
     }
-    
+
     if(verbose > 0)
       cout << "analyze " << subgroups.size() << " subgroup"
            << (subgroups.size() > 1 ? "s" : "")
@@ -250,7 +250,7 @@ namespace quantgen {
         cerr << "ERROR: file " << it->second << " is empty" << endl;
         exit(EXIT_FAILURE);
       }
-      
+
       // if file in VCF format
       if(line.find("##fileformat=VCF") != string::npos){
         while(getline(fileStream, line)){
@@ -271,7 +271,7 @@ namespace quantgen {
       else{ // not VCF
         split(line, " \t", tokens);
         closeFile(it->second, fileStream);
-	
+
         // if file in IMPUTE format
         if(tokens[0] == "chr"
            && (tokens[1] == "name" || tokens[1] == "id")
@@ -312,7 +312,7 @@ namespace quantgen {
           subgroup2samples_genotypes.insert(make_pair(it->first, tokens));
         }
       } // if file is not VCF
-      
+
       for(vector<string>::const_iterator itS =
             subgroup2samples_genotypes[it->first].begin();
           itS != subgroup2samples_genotypes[it->first].end(); ++itS){
@@ -320,7 +320,7 @@ namespace quantgen {
           samples.push_back(*itS);
       }
     } // end for loop over subgroups
-    
+
     if(verbose > 0){
       cout << "nb of samples (genotypes): " << samples.size() << endl << flush;
       for(map<string,vector<string> >::const_iterator it =
@@ -335,7 +335,7 @@ namespace quantgen {
       }
     }
   }
-  
+
   void loadSamples(const map<string,string> & subgroup2genofile,
                    const map<string,string> & subgroup2explevelfile,
                    const map<string,string> & subgroup2covarfile,
@@ -345,29 +345,29 @@ namespace quantgen {
   {
     if(verbose > 0)
       cout << "load samples ..." << endl << flush;
-    
+
     vector<string> samples_explevels;
     map<string,vector<string> > subgroup2samples_explevels;
     loadSamplesFromMatrixEqtl(subgroup2explevelfile, "explevels", verbose,
                               samples_explevels, subgroup2samples_explevels);
-    
+
     vector<string> samples_genotypes;
     map<string,vector<string> > subgroup2samples_genotypes;
     loadSamplesFromGenotypes(subgroup2genofile, verbose, samples_genotypes,
                              subgroup2samples_genotypes);
-    
+
     // fill samples by merging samples_explevels and samples_genotypes
     samples.AddSamplesIfNew(samples_explevels);
     samples.AddSamplesIfNew(samples_genotypes);
     if(verbose > 0)
       cout << "total nb of samples: " << samples.GetTotalNbSamples()
            << endl << flush;
-    
+
     vector<string> samples_covariates;
     map<string,vector<string> > subgroup2samples_covariates;
     loadSamplesFromMatrixEqtl(subgroup2covarfile, "covariates", verbose,
                               samples_covariates, subgroup2samples_covariates);
-    
+
     // check that each covariate sample has both geno and pheno
     for(vector<string>::const_iterator it = samples_covariates.begin();
         it != samples_covariates.end(); ++it)
@@ -375,12 +375,12 @@ namespace quantgen {
         cerr << "ERROR: sample " << *it << " has covariates but neither expression levels nor genotypes" << endl;
         exit(EXIT_FAILURE);
       }
-    
+
     // do the mapping between the vector of all samples and each subgroup
     samples.AddSamplesFromData(subgroup2samples_genotypes, "genotype");
     samples.AddSamplesFromData(subgroup2samples_explevels, "explevel");
     samples.AddSamplesFromData(subgroup2samples_covariates, "covariate");
-    
+
     if(error_model == "hybrid"){
       if(verbose > 0){
         cout << "nb of samples with genotype and exp level (pairs of subgroups):" << endl;
@@ -390,7 +390,7 @@ namespace quantgen {
         samples.ShowAllMappings(cerr);
     }
   }
-  
+
   /** \brief Parse the BED file
    */
   void loadGeneInfo(const string & file_genecoords, const int & verbose,
@@ -399,10 +399,10 @@ namespace quantgen {
   {
     if(verbose > 0)
       cout << "load gene coordinates ..." << endl << flush;
-    
+
     vector<string> lines;
     readFile(file_genecoords, lines);
-    
+
     vector<string> tokens;
     for(size_t i = 0; i < lines.size(); ++i){
       split(lines[i], " \t", tokens);
@@ -423,32 +423,32 @@ namespace quantgen {
       mChr2VecPtGenes[gene.GetChromosome()].push_back(
         &(gene2object[gene.GetName()]));
     }
-    
+
     // sort the genes per chr
     for(map<string,vector<Gene*> >::iterator it = mChr2VecPtGenes.begin();
         it != mChr2VecPtGenes.end(); ++it)
       sort(it->second.begin(), it->second.end(), pt_gene_lt_pt_gene);
-    
+
     if(verbose > 0)
       cout << "total nb of genes with coordinates: " << gene2object.size()
            << endl;
   }
-  
+
   void loadExplevels(const map<string,string> & subgroup2explevelfile,
                      const int & verbose,
                      map<string,Gene> & gene2object)
   {
     if(gene2object.empty())
       return;
-    
+
     if(verbose > 0)
       cout << "load gene expression levels ..." << endl << flush;
-    
+
     gzFile explevelstream;
     string subgroup, explevelfile, line;
     vector<string> tokens;
     size_t nb_samples, nb_lines, nb_genes_tokeep_per_subgroup;
-    
+
     for(map<string,string>::const_iterator it = subgroup2explevelfile.begin();
         it != subgroup2explevelfile.end(); ++it){
       nb_genes_tokeep_per_subgroup = 0;
@@ -467,7 +467,7 @@ namespace quantgen {
         nb_samples = tokens.size() - 1;
       else
         nb_samples = tokens.size();
-      
+
       while(getline(explevelstream, line)){
         ++nb_lines;
         split(line, " \t", tokens);
@@ -488,7 +488,7 @@ namespace quantgen {
              << " up to the end" << endl;
         exit(EXIT_FAILURE);
       }
-      
+
       closeFile(explevelfile, explevelstream);
       if(verbose > 0)
         cout << subgroup << " (" << explevelfile << "): "
@@ -496,7 +496,7 @@ namespace quantgen {
              << nb_genes_tokeep_per_subgroup << ")"
              << endl << flush;
     }
-    
+
     map<string,Gene>::iterator it = gene2object.begin();
     while(it != gene2object.end()){
       if(! it->second.HasExplevelsInAtLeastOneSubgroup()){
@@ -508,7 +508,7 @@ namespace quantgen {
       else
         ++it;
     }
-    
+
     if(verbose > 0)
       cout << "total nb of genes to analyze: " << gene2object.size() << endl;
     if(verbose > 1){
@@ -525,21 +525,21 @@ namespace quantgen {
       }
     }
   }
-  
+
   void loadSnpsToKeep(const string & file_snpstokeep, const int & verbose,
                       set<string> & sSnpsToKeep)
   {
     if(! file_snpstokeep.empty())
-    {  
+    {
       string line;
       gzFile stream;
       vector<string> tokens;
       size_t nb_lines = 0;
-      
+
       openFile(file_snpstokeep, stream, "rb");
       if(verbose > 0)
         cout <<"load file " << file_snpstokeep << " ..." << endl;
-      
+
       while(getline(stream, line)){
         nb_lines++;
         split(line, " \t,", tokens);
@@ -554,19 +554,19 @@ namespace quantgen {
         if(sSnpsToKeep.find(tokens[0]) == sSnpsToKeep.end())
           sSnpsToKeep.insert(tokens[0]);
       }
-      
+
       if(! gzeof(stream)){
         cerr << "ERROR: can't read successfully file "
              << file_snpstokeep << " up to the end" << endl;
         exit(EXIT_FAILURE);
       }
       closeFile(file_snpstokeep, stream);
-      
+
       if(verbose > 0)
         cout << "nb of SNPs to keep: " << sSnpsToKeep.size() << endl;
     }
   }
-  
+
   void loadGenosAndSnpInfoFromImpute(
     const map<string,string>::const_iterator & it_subgroup2genofile,
     const set<string> & sSnpsToKeep,
@@ -589,7 +589,7 @@ namespace quantgen {
       exit(EXIT_FAILURE);
     }
     size_t nb_samples = static_cast<size_t>((tokens.size() - 5) / 3);
-    
+
     while(getline(genoStream, line)){
       ++nb_lines;
       ++tot_nb_snps;
@@ -619,7 +619,7 @@ namespace quantgen {
       ++nb_snps_tokeep_per_subgroup;
     }
   }
-  
+
   void
   loadGenosAndSnpInfoFromVcf (
     const map<string,string>::const_iterator & it_subgroup2genofile,
@@ -636,7 +636,7 @@ namespace quantgen {
       genofile = it_subgroup2genofile->second;
     vector<string> tokens, tokens2;
     size_t nb_lines = 1; // header line already read
-    
+
     // skip the first lines of meta-data
     while(getline(genoStream, line)){
       ++nb_lines;
@@ -645,7 +645,7 @@ namespace quantgen {
     }
     split(line, " \t", tokens);
     size_t nb_samples = tokens.size() - 9;
-    
+
     while(getline(genoStream, line)){
       ++nb_lines;
       ++tot_nb_snps;
@@ -687,7 +687,7 @@ namespace quantgen {
       ++nb_snps_tokeep_per_subgroup;
     }
   }
-  
+
   void duplicateGenosPerSnpInAllSubgroups(
     const map<string,string> & subgroup2genofile,
     const int & verbose,
@@ -713,7 +713,7 @@ namespace quantgen {
       ++it;
     }
   }
-  
+
   void loadGenosAndSnpInfo(
     const map<string, string> & subgroup2genofile,
     const float & min_maf,
@@ -725,11 +725,11 @@ namespace quantgen {
   {
     if(verbose > 0)
       cout << "load genotypes and SNP coordinates ..." << endl << flush;
-    
+
     gzFile genoStream;
     string line;
     size_t tot_nb_snps, nb_snps_tokeep_per_subgroup;
-    
+
     bool same_files = false;
     for(map<string,string>::const_iterator it = subgroup2genofile.begin();
         it != subgroup2genofile.end(); ++it){
@@ -738,7 +738,7 @@ namespace quantgen {
         same_files = true;
         break; // avoid loading same file several times
       }
-      
+
       clock_t startTime = clock();
       tot_nb_snps = 0;
       nb_snps_tokeep_per_subgroup = 0;
@@ -747,7 +747,7 @@ namespace quantgen {
         cerr << "ERROR: problem with the header of file " << it->second << endl;
         exit(EXIT_FAILURE);
       }
-      
+
       if(line.find("##fileformat=VCF") != string::npos) // VCF format
         loadGenosAndSnpInfoFromVcf(it, sSnpsToKeep, mChr2VecPtGenes,
                                    genoStream, line, tot_nb_snps,
@@ -775,13 +775,13 @@ namespace quantgen {
              << endl;
         exit(EXIT_FAILURE);
       }
-      
+
       if(! gzeof(genoStream)){
         cerr << "ERROR: can't read successfully file " << it->second
              << " up to the end" << endl;
         exit(EXIT_FAILURE);
       }
-      
+
       closeFile(it->second , genoStream);
       if(verbose > 0)
         cout << it->first << " (" << it->second << "): " << tot_nb_snps
@@ -789,7 +789,7 @@ namespace quantgen {
              << fixed << setprecision(2) << getElapsedTime(startTime) << " sec)"
              << endl << flush;
     }
-    
+
     if(verbose > 0)
       cout << "discard SNPs with missing values ..." << endl << flush;
     map<string,Snp>::iterator it = snp2object.begin();
@@ -803,7 +803,7 @@ namespace quantgen {
       } else
         ++it;
     }
-    
+
     if(min_maf > 0){
       if(verbose > 0)
         cout << "filter SNPs with MAF < " << min_maf << " ..." << endl << flush;
@@ -819,27 +819,27 @@ namespace quantgen {
           ++it;
       }
     }
-    
+
     if(same_files)
       duplicateGenosPerSnpInAllSubgroups(subgroup2genofile, verbose,
                                          snp2object);
-    
+
     for(map<string, Snp>::const_iterator it = snp2object.begin();
         it != snp2object.end(); ++it){
       if(mChr2VecPtSnps.find(it->second.GetChromosome()) == mChr2VecPtSnps.end())
         mChr2VecPtSnps.insert(make_pair(it->second.GetChromosome(), vector<Snp*>()));
       mChr2VecPtSnps[it->second.GetChromosome()].push_back(&(snp2object[it->second.GetName()]));
     }
-    
+
     // sort the SNPs per chr
     for(map<string, vector<Snp*> >::iterator it = mChr2VecPtSnps.begin();
         it != mChr2VecPtSnps.end(); ++it)
       sort(it->second.begin(), it->second.end(), pt_snp_lt_pt_snp);
-    
+
     if(verbose > 0)
       cout << "nb of SNPs: " << snp2object.size() << endl;
   }
-  
+
   /** \brief Parse the unindexed BED file
    */
   void loadSnpInfo(const string & snpCoordsFile,
@@ -874,7 +874,7 @@ namespace quantgen {
     }
     closeFile(snpCoordsFile, snpCoordsStream);
   }
-  
+
   void loadGenos(const map<string, string> & subgroup2genofile,
                  const float & min_maf, const int & verbose,
                  map<string, Snp> & snp2object,
@@ -882,15 +882,15 @@ namespace quantgen {
   {
     if(snp2object.empty())
       return;
-    
+
     if(verbose > 0)
       cout << "load genotypes (custom format) ..." << endl << flush;
-    
+
     gzFile genoStream;
     string line;
     vector<string> tokens;
     size_t nb_samples, nb_lines, nb_snps_tokeep_per_subgroup;
-    
+
     bool same_files = false;
     for(map<string,string>::const_iterator it = subgroup2genofile.begin();
         it != subgroup2genofile.end(); ++it){
@@ -899,7 +899,7 @@ namespace quantgen {
         same_files = true;
         break; // avoid loading same file several times
       }
-      
+
       clock_t startTime = clock();
       nb_snps_tokeep_per_subgroup = 0;
       nb_lines = 0;
@@ -922,7 +922,7 @@ namespace quantgen {
         nb_samples = tokens.size() - 1;
       else
         nb_samples = tokens.size();
-      
+
       while(getline(genoStream, line)){
         ++nb_lines;
         split(line, " \t", tokens);
@@ -950,7 +950,7 @@ namespace quantgen {
              << " up to the end" << endl;
         exit(EXIT_FAILURE);
       }
-      
+
       closeFile(it->second, genoStream);
       if(verbose > 0)
         cout << it->first << " (" << it->second << "): " << (nb_lines-1)
@@ -958,7 +958,7 @@ namespace quantgen {
              << fixed << setprecision(2) << getElapsedTime(startTime) << " sec)"
              << endl << flush;
     }
-    
+
     if(verbose > 0)
       cout << "discard SNPs with missing values ..." << endl << flush;
     map<string,Snp>::iterator it = snp2object.begin();
@@ -972,7 +972,7 @@ namespace quantgen {
       } else
         ++it;
     }
-    
+
     if(min_maf > 0){
       if(verbose > 0)
         cout << "filter SNPs with MAF < " << min_maf << " ..." << endl << flush;
@@ -988,27 +988,27 @@ namespace quantgen {
           ++it;
       }
     }
-    
+
     if(same_files)
       duplicateGenosPerSnpInAllSubgroups(subgroup2genofile, verbose,
                                          snp2object);
-    
+
     for(map<string, Snp>::const_iterator it = snp2object.begin();
         it != snp2object.end(); ++it){
       if(mChr2VecPtSnps.find(it->second.GetChromosome()) == mChr2VecPtSnps.end())
         mChr2VecPtSnps.insert(make_pair(it->second.GetChromosome(), vector<Snp*>()));
       mChr2VecPtSnps[it->second.GetChromosome()].push_back(&(snp2object[it->second.GetName()]));
     }
-    
+
     // sort the SNPs per chr
     for(map<string,vector<Snp*> >::iterator it = mChr2VecPtSnps.begin();
         it != mChr2VecPtSnps.end(); ++it)
       sort(it->second.begin(), it->second.end(), pt_snp_lt_pt_snp);
-    
+
     if(verbose > 0)
       cout << "total nb of SNPs to analyze: " << snp2object.size() << endl;
   }
-  
+
   void loadListCovarFiles(
     const string & file_covarpaths,
     const string & sbgrpToKeep,
@@ -1017,7 +1017,7 @@ namespace quantgen {
     const int & verbose)
   {
     mCovarPaths = loadTwoColumnFile (file_covarpaths, verbose);
-    
+
     map<string, string>::iterator it = mCovarPaths.begin();
     while(it != mCovarPaths.end())
     {
@@ -1038,7 +1038,7 @@ namespace quantgen {
         ++it;
     }
   }
-  
+
   /** \brief Allow to load several covariate files per subgroup.
    */
   void loadListCovarFiles(
@@ -1052,13 +1052,13 @@ namespace quantgen {
     gzFile stream;
     vector<string> tokens;
     size_t nb_lines = 0, nbLoadedCovarFiles = 0;
-    
+
     openFile(file_covarpaths, stream, "rb");
     if(verbose > 0)
       cout <<"load file " << file_covarpaths << " ..." << endl;
-    
+
     while(getline(stream, line)){
-      nb_lines;
+      ++nb_lines;
       split(line, " \t,", tokens);
       if(tokens.size() != 2){
         cerr << "ERROR: file " << file_covarpaths
@@ -1081,19 +1081,19 @@ namespace quantgen {
       mCovarPaths[tokens[0]].push_back(tokens[1]);
       ++nbLoadedCovarFiles;
     }
-    
+
     if(! gzeof(stream)){
       cerr << "ERROR: can't read successfully file "
            << file_covarpaths << " up to the end" << endl;
       exit(EXIT_FAILURE);
     }
     closeFile(file_covarpaths, stream);
-    
+
     if(verbose > 0)
       cout << "items loaded: " << nbLoadedCovarFiles << " files for "
            << mCovarPaths.size() << " subgroups" << endl;
   }
-  
+
   void loadCovariates(
     const map<string,string> subgroup2covarfile,
     const int & verbose,
@@ -1101,15 +1101,15 @@ namespace quantgen {
   {
     if(subgroup2covarfile.empty())
       return;
-    
+
     if(verbose > 0)
       cout << "load covariates ..." << endl << flush;
-    
+
     gzFile covarstream;
     vector<string> tokens;
     string subgroup, covarfile, line;
     size_t nb_samples, nb_lines;
-    
+
     for(map<string,string>::const_iterator it = subgroup2covarfile.begin();
         it != subgroup2covarfile.end(); ++it){
       map<string,vector<string> > covariate2values;
@@ -1127,7 +1127,7 @@ namespace quantgen {
         nb_samples = tokens.size() - 1;
       else
         nb_samples = tokens.size();
-      
+
       while(getline(covarstream, line)){
         ++nb_lines;
         split(line, " \t", tokens);
@@ -1145,11 +1145,11 @@ namespace quantgen {
              << " up to the end" << endl;
         exit(EXIT_FAILURE);
       }
-      
+
       closeFile(covarfile, covarstream);
       covariates.AddSubgroup(subgroup, covariate2values);
     }
-    
+
     if(verbose > 0)
       for(map<string,string>::const_iterator it = subgroup2covarfile.begin();
           it != subgroup2covarfile.end(); ++it)
@@ -1157,7 +1157,7 @@ namespace quantgen {
              << covariates.GetNbCovariates(it->first)
              << " covariates" << endl;
   }
-  
+
   void loadRawInputData(
     const string & file_genopaths,
     const string & file_snpcoords,
@@ -1185,18 +1185,18 @@ namespace quantgen {
                                        error_model, verbose, subgroup2genofile,
                                        subgroup2explevelfile,
                                        subgroup2covarfile, subgroups);
-    
+
     loadSamples(subgroup2genofile, subgroup2explevelfile, subgroup2covarfile,
                 error_model, verbose, samples);
-    
+
     loadCovariates(subgroup2covarfile, verbose, covariates);
-    
+
     map<string,vector<Gene*> > mChr2VecPtGenes;
     loadGeneInfo(file_genecoords, verbose, gene2object, mChr2VecPtGenes);
     loadExplevels(subgroup2explevelfile, verbose, gene2object);
     if(gene2object.empty())
       return;
-    
+
     if(file_snpcoords.empty())
       loadGenosAndSnpInfo(subgroup2genofile, min_maf, sSnpsToKeep,
                           mChr2VecPtGenes, verbose, snp2object, mChr2VecPtSnps);
@@ -1208,7 +1208,7 @@ namespace quantgen {
     if(snp2object.empty())
       return;
   }
-  
+
   void loadListSstatsFile(
     const string & file_sstats,
     const int & verbose,
@@ -1218,16 +1218,16 @@ namespace quantgen {
     gzFile stream;
     vector<string> tokens;
     size_t nb_lines = 0;
-    
+
     openFile(file_sstats, stream, "rb");
     if(verbose > 0)
       cout <<"load file " << file_sstats << " ..." << endl;
-    
+
     while(getline(stream, line)){
       ++nb_lines;
       split(line, " \t,", tokens);
       if(tokens.size() != 2){
-        cerr << "ERROR: file " << file_sstats 
+        cerr << "ERROR: file " << file_sstats
              << " should have only two columns at line " << nb_lines << endl;
         exit(EXIT_FAILURE);
       }
@@ -1236,18 +1236,18 @@ namespace quantgen {
       if(subgroup2sstatsfile.find(tokens[0]) == subgroup2sstatsfile.end())
         subgroup2sstatsfile.insert(make_pair(tokens[0], tokens[1]));
     }
-    
+
     if(! gzeof(stream)){
       cerr << "ERROR: can't read successfully file "
            << file_sstats << " up to the end" << endl;
       exit(EXIT_FAILURE);
     }
     closeFile(file_sstats, stream);
-    
+
     if(verbose > 0)
       cout << "items loaded: " << subgroup2sstatsfile.size() << " files" << endl;
   }
-  
+
   void fillGeneSnpPairsWithSstats(
     const map<string,string> & subgroup2sstatsfile,
     const int & verbose,
@@ -1266,7 +1266,7 @@ namespace quantgen {
     Snp * pt_snp = NULL;
     vector<GeneSnpPair>::iterator it_gsp;
     size_t idx_snp = string::npos;
-    
+
     // loop over subgroups
     for(map<string,string>::const_iterator it_sf = subgroup2sstatsfile.begin();
         it_sf != subgroup2sstatsfile.end(); ++it_sf){
@@ -1274,7 +1274,7 @@ namespace quantgen {
         cout << "load summary statistics for subgroup "
              << it_sf->first << " ..." << endl;
       readFile(it_sf->second, lines);
-      
+
       // parse file header
       for(map<string,size_t>::iterator it_c = col2idx.begin();
           it_c != col2idx.end(); ++it_c)
@@ -1290,23 +1290,23 @@ namespace quantgen {
                << it_sf->second << endl;
           exit(EXIT_FAILURE);
         }
-      
+
       // parse file content
       for(size_t line_id = 1; line_id < lines.size(); ++line_id){
         split(lines[line_id], "\t", tokens);
-	
+
         // get gene (create it if necessary)
         if(gene2object.find(tokens[col2idx["gene"]]) == gene2object.end())
           gene2object.insert(make_pair(tokens[col2idx["gene"]],
                                        Gene(tokens[col2idx["gene"]])));
         pt_gene = &(gene2object[tokens[col2idx["gene"]]]);
-	
+
         // get snp (create it if necessary)
         if(snp2object.find(tokens[col2idx["snp"]]) == snp2object.end())
           snp2object.insert(make_pair(tokens[col2idx["snp"]],
                                       Snp(tokens[col2idx["snp"]])));
         pt_snp = &(snp2object[tokens[col2idx["snp"]]]);
-	
+
         // get gene-snp pair (create it if necessary)
         idx_snp = pt_gene->FindIdxSnp(pt_snp);
         if(idx_snp == string::npos){
@@ -1314,18 +1314,18 @@ namespace quantgen {
           it_gsp = pt_gene->AddGeneSnpPair(pt_snp->GetName(), "uvlr");
         } else
           it_gsp = pt_gene->FindGeneSnpPair(idx_snp);
-	
+
         it_gsp->SetSstats(it_sf->first,
                           atol(tokens[col2idx["n"]].c_str()),
                           atof(tokens[col2idx["sigmahat"]].c_str()),
                           atof(tokens[col2idx["betahat.geno"]].c_str()),
                           atof(tokens[col2idx["sebetahat.geno"]].c_str()));
-	
+
       } // end of loop over lines
-      
+
     } // end of loop over subgroups
   }
-  
+
   void loadSummaryStats(
     const string & file_sstats,
     const int & verbose,
@@ -1335,13 +1335,13 @@ namespace quantgen {
   {
     map<string,string> subgroup2sstatsfile;
     loadListSstatsFile(file_sstats, verbose, subgroup2sstatsfile);
-    
+
     keys2vec(subgroup2sstatsfile, subgroups);
-    
+
     fillGeneSnpPairsWithSstats(subgroup2sstatsfile, verbose, gene2object,
                                snp2object);
   }
-  
+
   /** \brief Parse the tabix-indexed BED file
    */
   void loadSnpInfo(const string & file_snpcoords,
@@ -1361,7 +1361,7 @@ namespace quantgen {
            << ") is older than data file (" << file_snpcoords << ")" << endl;
       exit(EXIT_FAILURE);
     }
-    
+
     tabix_t * t;
     if((t = ti_open(file_snpcoords.c_str(), 0)) == 0){
       cerr << "ERROR: fail to open the data file (tabix)" << endl;
@@ -1371,7 +1371,7 @@ namespace quantgen {
       cerr << "ERROR: failed to load the index file (tabix)" << endl;
       exit(EXIT_FAILURE);
     }
-    
+
     const char *s;
     ti_iter_t iter;
     vector<string> tokens;
@@ -1382,7 +1382,7 @@ namespace quantgen {
                          &t_id, &t_beg, &t_end) == 0){
         iter = ti_queryi(t, t_id, t_beg, t_end);
         while((s = ti_read(t, iter, &len)) != 0){
-	  
+
           split(string(s), "\t", tokens);
           if(! sSnpsToKeep.empty() && sSnpsToKeep.find(tokens[3])
              == sSnpsToKeep.end())
@@ -1391,14 +1391,14 @@ namespace quantgen {
             continue; // in case of redundancy
           Snp snp(tokens[3], tokens[0], tokens[2]);
           snp2object.insert(make_pair(snp.GetName(), snp));
-	  
+
         }
         ti_iter_destroy(iter);
       }
     }
     ti_close(t);
   }
-  
+
   /** \brief Parse the BED file (indexed or not)
    */
   void loadSnpInfo(const string & file_snpcoords,
@@ -1412,7 +1412,7 @@ namespace quantgen {
     if(verbose > 0)
       cout << "load SNP coordinates";
     clock_t startTime = clock();
-    
+
     stringstream file_snpcoords_idx;
     file_snpcoords_idx << file_snpcoords << ".tbi";
     if(doesFileExist(file_snpcoords_idx.str())){
@@ -1424,11 +1424,11 @@ namespace quantgen {
       cout << " (unindexed BED file) ..." << endl << flush;
       loadSnpInfo(file_snpcoords, sSnpsToKeep, verbose, snp2object);
     }
-    
+
     if(verbose > 0)
       cout << "total nb of SNPs with coordinates: " << snp2object.size()
            << " (loaded in " << fixed << setprecision(2)
            << getElapsedTime(startTime) << " sec)" << endl;
   }
-  
+
 } // namespace quantgen

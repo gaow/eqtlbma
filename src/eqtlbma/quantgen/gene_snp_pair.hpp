@@ -175,7 +175,7 @@ namespace quantgen {
     void CalcBMACustomizedPriors(const std::vector<std::string> & Wg_names);
     void CalcAbfsUvlr(
       const std::vector<std::string> & subgroups,
-      const std::string & whichBfs,
+      const std::vector<std::string> & whichBfs,
       const Grid & iGridL,
       const Grid & iGridS);
     void CalcAbfsMvlrForConsistentConfiguration(
@@ -209,7 +209,7 @@ namespace quantgen {
       const Snp & snp,
       const Covariates & covariates,
       const bool & needQnorm,
-      const std::string & whichBfs,
+      const std::vector<std::string> & whichBfs,
       const Grid & iGridL,
       const Grid & iGridS,
       const PriorMatrices & Pm,
@@ -256,7 +256,7 @@ namespace quantgen {
       const Snp & snp,
       const Covariates & covariates,
       const bool & needQnorm,
-      const std::string & whichBfs,
+      const std::vector<std::string> & whichBfs,
       const Grid & iGridL,
       const Grid & iGridS,
       const PriorMatrices & Pm,

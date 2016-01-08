@@ -24,6 +24,7 @@ using namespace utils;
 
 namespace quantgen {
 
+  Grid::Grid() {}
   Grid::Grid(const string & gridFile, const bool & makeFixMaxh,
 	     const int & verbose)
   {
@@ -88,6 +89,7 @@ namespace quantgen {
   }
 
 
+  PriorMatrices::PriorMatrices() {}
   PriorMatrices::PriorMatrices(const string & file_pattern,
                                const string & scalar_file,
                                const size_t & matrix_dimension,
@@ -139,7 +141,6 @@ namespace quantgen {
       }
       closeFile(Wg_names[m], gridStream);
       Wgs.push_back(priorM);
-      gsl_matrix_free(priorM);
     }
     if (verbose > 0) {
         cout << "number of customized prior matrices: "
@@ -219,7 +220,6 @@ namespace quantgen {
           }
         }
         Wgs.push_back(priorM);
-        gsl_matrix_free(priorM);
       }
       if (i.first == gridName) {
         // load weights

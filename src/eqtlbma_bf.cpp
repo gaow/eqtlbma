@@ -143,16 +143,7 @@ void help(char ** argv)
        << "\t\trequired with --analys join" << endl
        << "      --gridS\tfile with a 'small' grid of values for phi^2 and omega^2" << endl
        << "\t\tsame format as --gridL" << endl
-       << "\t\trequired with --analyis join if --bfs is 'sin' or 'all' or 'customized'" << endl
-       << "      --priorM\tfiles of matrices to be used as prior values" << endl
-       << "\t\teach file contains one RxR matrix where R is number of subgroups" << endl
-       << "\t\trequired with --analyis join if --bfs is 'customized'" << endl
-       << "\t\twhen used, --error must be 'mvlr' or 'hybrid'" << endl
-       << "\t\twildcard character (*) for file names is supported (file pattern string must be double quoted!)" << endl
-       << "      --gridM\tfile with grid of scalars for customized prior matrices" << endl
-       << "\t\tthis is a one column file containing all scalar values" << endl
-       << "\t\tthis grid should be 'smaller' than gridL" << endl
-       << "\t\trequired when --priorM is specified" << endl
+       << "\t\trequired with --analyis join if --bfs is 'sin' or 'all'" << endl
        << "      --bfs\twhich Bayes Factors to compute for the joint analysis" << endl
        << "\t\tonly the Laplace-approximated BF from Wen and Stephens (AoAS 2013) is implemented" << endl
        << "\t\tif --outw, each BF for a given configuration is the average of the BFs over one of the grids, with equal weights" << endl
@@ -161,9 +152,7 @@ void help(char ** argv)
        << "\t\t fixed-effect and maximum-heterogeneity BFs are also calculated" << endl
        << "\t\t'sin': compute also the BF for each singleton (subgroup-specific configuration)" << endl
        << "\t\t they use the small grid (BF_BMAlite is also reported)" << endl
-       << "\t\t'customized': compute also the BF for customized prior specifications" << endl
-       << "\t\t customized BFs use the grid provided by --gridM (BF_BMACustomized is also reported)" << endl
-       << "\t\t'all': compute the BFs for all configurations (costly if many subgroups)" << endl
+       << "\t\t'all': compute also the BFs for all configurations (costly if many subgroups)" << endl
        << "\t\t all BFs use the small grid (BF_BMA is also reported)" << endl
        << "      --error\tmodel for the errors (if --analys join)" << endl
        << "\t\t'uvlr': default, errors are not correlated between subgroups (different individuals)" << endl
@@ -250,8 +239,6 @@ parseCmdLine(
   string & covarFile,
   string & file_largegrid,
   string & file_smallgrid,
-  string & file_prior,
-  string & file_prior_scalar,
   string & bfs,
   string & error_model,
   float & prop_cov_errors,
@@ -270,7 +257,8 @@ parseCmdLine(
   int & verbose)
 {
   int c = 0;
-  static struct option long_options[] = {
+  while(true){
+    static struct option long_options[] = {
       {"help", no_argument, 0, 'h'},
       {"version", no_argument, 0, 'V'},
       {"verbose", required_argument, 0, 'v'},
@@ -292,8 +280,6 @@ parseCmdLine(
       {"covar", required_argument, 0, 0},
       {"gridL", required_argument, 0, 0},
       {"gridS", required_argument, 0, 0},
-      {"priorM", required_argument, 0, 0},
-      {"gridM", required_argument, 0, 0},
       {"bfs", required_argument, 0, 0},
       {"error", required_argument, 0, 0},
       {"fiterr", required_argument, 0, 0},
@@ -310,7 +296,6 @@ parseCmdLine(
       {"wrtsize", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
-  while(true){
     int option_index = 0;
     c = getopt_long(argc, argv, "hVv:",
 		    long_options, &option_index);
@@ -398,14 +383,6 @@ parseCmdLine(
       }
       if(strcmp(long_options[option_index].name, "gridS") == 0){
 	file_smallgrid = optarg;
-	break;
-      }
-      if(strcmp(long_options[option_index].name, "priorM") == 0){
-	file_prior = optarg;
-	break;
-      }
-      if(strcmp(long_options[option_index].name, "gridM") == 0){
-	file_prior_scalar = optarg;
 	break;
       }
       if(strcmp(long_options[option_index].name, "bfs") == 0){
@@ -622,61 +599,17 @@ parseCmdLine(
     // help(argv);
     exit(EXIT_FAILURE);
   }
-  if(! file_smallgrid.empty() && ! doesFileExist(file_smallgrid)){
-    cerr << "cmd-line: " << getCmdLine(argc, argv) << endl << endl
-	 << "ERROR: can't find " << file_smallgrid << endl << endl;
-    // help(argv);
-    exit(EXIT_FAILURE);
-  }
-  if(! file_prior_scalar.empty() && ! doesFileExist(file_prior_scalar)){
-    cerr << "cmd-line: " << getCmdLine(argc, argv) << endl << endl
-	 << "ERROR: can't find " << file_prior_scalar << endl << endl;
-    // help(argv);
-    exit(EXIT_FAILURE);
-  }
-  if(! file_prior.empty() && file_prior_scalar.empty()){
-    cerr << "cmd-line: " << getCmdLine(argc, argv) << endl << endl
-	 << "ERROR: missing compulsory option --gridM with --priorM" << endl << endl;
-    // help(argv);
-    exit(EXIT_FAILURE);
-  }
-  if( file_prior.empty() && ! file_prior_scalar.empty()){
-    cerr << "cmd-line: " << getCmdLine(argc, argv) << endl << endl
-	 << "ERROR: missing compulsory option --priorM with --gridM" << endl << endl;
-    // help(argv);
-    exit(EXIT_FAILURE);
-  }
-  if(file_prior.empty() && bfs == "customized"){
-    cerr << "cmd-line: " << getCmdLine(argc, argv) << endl << endl
-	 << "ERROR: missing compulsory option --priorM when --bfs customized is used" << endl << endl;
-    // help(argv);
-    exit(EXIT_FAILURE);
-  }
-  if(! file_prior.empty() && bfs != "customized"){
-    cerr << "WARNING: --priorM will be ignored because --bfs customized is not used" << endl;
-  }
-  if(bfs!= "gen" && bfs != "sin" && bfs != "all" && bfs != "customized"){
-    cerr << "cmd-line: " << getCmdLine(argc, argv) << endl << endl
-	 << "ERROR: --bfs " << bfs << " is not valid" << endl << endl;
-    // help(argv);
-    exit(EXIT_FAILURE);
-  }
-  if(analysis == "join" && bfs != "gen" &&
+  if(analysis == "join" &&
+     (bfs == "sin" || bfs == "all") &&
      file_smallgrid.empty()){
     cerr << "cmd-line: " << getCmdLine(argc, argv) << endl << endl
 	 << "ERROR: --gridS is required with --analys join and --bfs " << bfs << endl << endl;
     // help(argv);
     exit(EXIT_FAILURE);
   }
-  if(analysis != "join" && bfs == "customized") {
+  if(bfs!= "gen" && bfs != "sin" && bfs != "all"){
     cerr << "cmd-line: " << getCmdLine(argc, argv) << endl << endl
-	 << "ERROR: --analys join is required when --bfs customized is used" << endl << endl;
-    // help(argv);
-    exit(EXIT_FAILURE);
-  }
-  if(error_model == "uvlr" && bfs == "customized") {
-    cerr << "cmd-line: " << getCmdLine(argc, argv) << endl << endl
-	 << "ERROR: --error_model uvlr cannot be used with --bfs customized" << endl << endl;
+	 << "ERROR: --bfs " << bfs << " is not valid" << endl << endl;
     // help(argv);
     exit(EXIT_FAILURE);
   }
@@ -783,7 +716,6 @@ void testForAssociations(
   const Covariates & covariates,
   const Grid & iGridL,
   const Grid & iGridS,
-  const PriorMatrices & iPriorM,
   const string & bfs,
   const string & error_model,
   const float & prop_cov_errors,
@@ -793,6 +725,8 @@ void testForAssociations(
   size_t & nbAnalyzedGenes,
   size_t & nbAnalyzedPairs)
 {
+  vector<string> bfs_vec = {bfs}; // input compatibility with omics-bma branch
+  PriorMatrices iPriorM; // input compatibility with omics-bma branch
   for(map<string,Gene>::iterator itG = itG_begin;
       itG != itG_end; ++itG){
     if(verbose > 1)
@@ -829,7 +763,7 @@ void testForAssociations(
     }
     itG->second.TestForAssociations(hasDataNotSstats, subgroups, samples,
 				    likelihood, analysis, need_qnorm,
-            covariates, iGridL, iGridS, iPriorM, bfs,
+            covariates, iGridL, iGridS, iPriorM, bfs_vec,
 				    error_model, prop_cov_errors, verbose-1);
     ++nbAnalyzedGenes;
     nbAnalyzedPairs += itG->second.GetNbGeneSnpPairs();
@@ -898,7 +832,6 @@ void makePermutationsJoin(
   const Covariates & covariates,
   const Grid & iGridL,
   const Grid & iGridS,
-  const PriorMatrices & iPriorM,
   const string & error_model,
   const float & prop_cov_errors,
   size_t & nb_permutations,
@@ -912,6 +845,8 @@ void makePermutationsJoin(
   map<string, Gene>::iterator & itG_begin,
   map<string, Gene>::iterator & itG_end)
 {
+  PriorMatrices iPriorM; // input compatibility with omics-bma branch
+
   gsl_rng_set(rngPerm, seed);
   if(trick != 0)
     gsl_rng_set(rngTrick, seed);
@@ -924,11 +859,10 @@ void makePermutationsJoin(
        ! itG->second.HasExplevelsInAllSubgroups(subgroups))
       continue;
     itG->second.MakePermutationsJoin(subgroups, samples, likelihood, need_qnorm,
-                                     covariates, iGridL, iGridS, iPriorM,
-                                     error_model, prop_cov_errors,
-                                     nb_permutations, trick,
-                                     trick_cutoff, permbf, use_max_bf,
-                                     rngPerm, rngTrick);
+             covariates, iGridL, iGridS, iPriorM, error_model,
+				     prop_cov_errors, nb_permutations, trick,
+				     trick_cutoff, permbf, use_max_bf,
+				     rngPerm, rngTrick);
   }
 }
 
@@ -942,7 +876,6 @@ makePermutations(
   const Covariates & covariates,
   const Grid & iGridL,
   const Grid & iGridS,
-  const PriorMatrices & iPriorM,
   const string & error_model,
   const float & prop_cov_errors,
   size_t & nb_permutations,
@@ -977,7 +910,7 @@ makePermutations(
 			perm_sep, rngPerm, rngTrick, itG_begin, itG_end);
   if(analysis == "join" && permbf != "none")
     makePermutationsJoin(subgroups, samples, likelihood, need_qnorm, covariates,
-                         iGridL, iGridS, iPriorM, error_model, prop_cov_errors,
+                         iGridL, iGridS, error_model, prop_cov_errors,
                          nb_permutations, seed, trick, trick_cutoff, permbf,
                          use_max_bf, rngPerm, rngTrick, itG_begin, itG_end);
 
@@ -1178,7 +1111,6 @@ void writeResAbfsRaw(
   const size_t & nb_subgroups,
   const Grid & iGridL,
   const Grid & iGridS,
-  const PriorMatrices & iPriorM,
   const string & bfs,
   const string & header_opt)
 {
@@ -1287,28 +1219,10 @@ void writeResAbfsRaw(
       	    if(gsl_combination_next(comb) != GSL_SUCCESS)
       	      break;
       	  }
-      	  gsl_combination_free(comb);
-          if(bfs == "sin" || bfs == "customized")
+      	  if(bfs == "sin")
       	    break;
+      	  gsl_combination_free(comb);
       	}
-      }
-      // write the BFs for each customized prior (with customized grid)
-      if(bfs == "customized") {
-        for (size_t m = 0; m < iPriorM.Wg_names.size(); ++m) {
-          ssTxt.str("");
-      	  ssTxt << it_gene->first
-                << sep << it_pair->GetSnpName();
-          ssTxt << sep << iPriorM.Wg_names[m];
-          for (size_t j = 0; j < iGridL.size(); ++j) {
-            if (j < iPriorM.Wg_scalars.size())
-      		ssTxt << sep << *(it_pair->BeginUnweightedAbf(iPriorM.Wg_names[m]) + j);
-      	      else
-      		ssTxt << sep << NaN;
-          }
-      	  ssTxt << "\n";
-      	  ++nb_lines;
-      	  gzwriteLine(outStream, ssTxt.str(), ssOutFile.str(), nb_lines);
-        }
       }
     }
   }
@@ -1321,7 +1235,6 @@ void writeResAbfsAvgGrids(
   const map<string, Gene>::iterator & itG_begin,
   const map<string, Gene>::iterator & itG_end,
   const size_t & nb_subgroups,
-  const vector<string> & customized_priors,
   const string & bfs,
   const string & error_model,
   const string & header_opt)
@@ -1345,12 +1258,10 @@ void writeResAbfsAvgGrids(
     ssTxt << sep << "l10abf.gen"
           << sep << "l10abf.gen.fix"
           << sep << "l10abf.gen.maxh";
-    if(bfs == "sin" || bfs == "all" || bfs == "customized")
+    if(bfs == "sin" || bfs == "all")
       ssTxt << sep << "l10abf.gen.sin";
     if(bfs == "all")
       ssTxt << sep << "l10abf.all";
-    if(bfs == "customized")
-      ssTxt << sep << "l10abf.customized";
     if(bfs != "gen"){
       for(size_t k = 1; k <= nb_subgroups; ++k){
         comb = gsl_combination_calloc(nb_subgroups, k);
@@ -1367,13 +1278,8 @@ void writeResAbfsAvgGrids(
             break;
         }
         gsl_combination_free(comb);
-        if(bfs == "sin" || bfs == "customized")
+        if(bfs == "sin")
           break;
-      }
-    }
-    if(bfs == "customized") {
-      for (size_t m = 0; m < customized_priors.size(); ++m) {
-        ssTxt << sep << "l10abf." << customized_priors[m];
       }
     }
     ssTxt << endl;
@@ -1399,12 +1305,10 @@ void writeResAbfsAvgGrids(
 	    << sep << it_pair->GetWeightedAbf("gen")
 	    << sep << it_pair->GetWeightedAbf("gen-fix")
 	    << sep << it_pair->GetWeightedAbf("gen-maxh");
-      if(bfs == "sin" || bfs == "all" || bfs == "customized")
+      if(bfs == "sin" || bfs == "all")
 	ssTxt << sep << it_pair->GetWeightedAbf("gen-sin");
       if(bfs == "all")
 	ssTxt << sep << it_pair->GetWeightedAbf("all");
-      if(bfs == "customized")
-	ssTxt << sep << it_pair->GetWeightedAbf("customized");
       if(bfs != "gen"){
 	for(size_t k = 1; k <= nb_subgroups; ++k){
 	  comb = gsl_combination_calloc(nb_subgroups, k);
@@ -1424,14 +1328,9 @@ void writeResAbfsAvgGrids(
 	      break;
 	  }
 	  gsl_combination_free(comb);
-	  if(bfs == "sin" || bfs == "customized")
+	  if(bfs == "sin")
 	    break;
 	}
-      }
-      if (bfs == "customized") {
-        for (size_t m = 0; m < customized_priors.size(); ++m) {
-          ssTxt << sep << it_pair->GetWeightedAbf(customized_priors[m]);
-        }
       }
       ssTxt << "\n";
       ++nb_lines;
@@ -1513,7 +1412,6 @@ void writeRes(
   const string & analysis,
   const Grid & iGridL,
   const Grid & iGridS,
-  const PriorMatrices & iPriorM,
   const string & bfs,
   const size_t & nb_permutations,
   const int & perm_sep,
@@ -1538,13 +1436,12 @@ void writeRes(
                           header_opt);
   }
 
-
   if(analysis == "join"){
     writeResAbfsRaw(out_prefix, itG_begin, itG_end, subgroups.size(),
-                    iGridL, iGridS, iPriorM, bfs, header_opt);
+                    iGridL, iGridS, bfs, header_opt);
     if(save_weighted_abfs)
       writeResAbfsAvgGrids(out_prefix, itG_begin, itG_end, subgroups.size(),
-                           iPriorM.Wg_names, bfs, error_model, header_opt);
+                           bfs, error_model, header_opt);
   }
 
   if(analysis == "join" && nb_permutations > 0)
@@ -1569,8 +1466,6 @@ void run(const string & file_genopaths,
 	 const string & file_covarpaths,
 	 const string & file_largegrid,
 	 const string & file_smallgrid,
-   const string & file_prior,
-   const string & file_prior_scalar,
 	 const string & bfs,
 	 const string & error_model,
 	 const float & prop_cov_errors,
@@ -1612,18 +1507,12 @@ void run(const string & file_genopaths,
   if(gene2object.empty() || snp2object.empty())
     return;
 
-  // load grid / customized priors
   Grid iGridL(file_largegrid, true, verbose);
   Grid iGridS(file_smallgrid, false, verbose);
-  PriorMatrices iPriorM(file_prior, file_prior_scalar, subgroups.size(), verbose);
-  if (iPriorM.Wg_scalars.size() > iGridL.size()) {
-    cerr << "WARNING: --gridM is larger than --gridL; thus will be truncated to the size of --gridL" << endl;
-  }
-
   // write header
   writeRes(out_prefix, save_sstats, save_weighted_abfs, subgroups,
            gene2object.begin(), gene2object.end(),
-           snp2object, analysis, iGridL, iGridS, iPriorM, bfs, nb_permutations,
+           snp2object, analysis, iGridL, iGridS, bfs, nb_permutations,
            perm_sep, error_model, seed, permbf, use_max_bf, "only");
 
   size_t countGenes = 0;
@@ -1660,26 +1549,24 @@ void run(const string & file_genopaths,
   for(map<string,Gene>::iterator itG = gene2object.begin();
       itG != gene2object.end();) {
     map<string,Gene>::iterator itG_begin = itG;
-    size_t step_size = min((int)distance(itG, gene2object.end()),
-                           write_group_size);
+    size_t step_size = min((int)distance(itG, gene2object.end()), write_group_size);
     advance(itG, step_size);
     testForAssociations(file_sstats.empty(), mChr2VecPtSnps, anchor, radius,
                         subgroups, samples, likelihood, analysis,
-                        need_qnorm, covariates, iGridL, iGridS, iPriorM, bfs,
+                        need_qnorm, covariates, iGridL, iGridS, bfs,
                         error_model, prop_cov_errors, verbose,
                         itG_begin, itG, nbAnalyzedGenes, nbAnalyzedPairs);
     if(is_perm){
       omp_set_num_threads(nb_threads);
       makePermutations(subgroups, samples, likelihood, analysis, need_qnorm,
-                       covariates, iGridL, iGridS, iPriorM, error_model,
-                       prop_cov_errors,
+                       covariates, iGridL, iGridS, error_model, prop_cov_errors,
                        nb_permutations, seed, trick, trick_cutoff, perm_sep,
                        permbf, use_max_bf, itG_begin, itG);
     }
     // write results
     writeRes(out_prefix, save_sstats, save_weighted_abfs, subgroups,
-             itG_begin, itG, snp2object, analysis, iGridL, iGridS, iPriorM,
-             bfs, nb_permutations, perm_sep, error_model, seed, permbf,
+             itG_begin, itG, snp2object, analysis, iGridL, iGridS, bfs,
+             nb_permutations, perm_sep, error_model, seed, permbf,
              use_max_bf, "none");
     // progress tracker
     countGenes += step_size;
@@ -1709,18 +1596,17 @@ int main(int argc, char ** argv)
   string file_genopaths, file_snpcoords, file_exppaths, file_genecoords,
     anchor = "TSS", file_sstats, out_prefix, likelihood = "normal",
     analysis, file_covarpaths, file_largegrid, file_smallgrid,
-    file_prior, file_prior_scalar, bfs = "gen", error_model = "uvlr",
-    permbf = "none", file_snpstokeep;
+    bfs = "gen", error_model = "uvlr", permbf = "none",
+    file_snpstokeep;
   vector<string> subgroups_tokeep;
 
   parseCmdLine(argc, argv, file_genopaths, file_snpcoords, file_exppaths,
 	       file_genecoords, anchor, radius, file_sstats, out_prefix,
 	       save_sstats, save_weighted_abfs, likelihood, analysis,
 	       need_qnorm, min_maf, file_covarpaths, file_largegrid,
-         file_smallgrid, file_prior, file_prior_scalar, bfs, error_model,
-         prop_cov_errors, nb_types,
+	       file_smallgrid, bfs, error_model, prop_cov_errors, nb_types,
 	       nb_permutations, seed, trick, trick_cutoff, perm_sep,
-         permbf, use_max_bf, nb_threads, file_snpstokeep,
+           permbf, use_max_bf, nb_threads, file_snpstokeep,
 	       subgroups_tokeep, write_group_size, verbose);
 
   time_t time_start, time_end;
@@ -1737,8 +1623,7 @@ int main(int argc, char ** argv)
   run(file_genopaths, file_snpcoords, file_exppaths, file_genecoords, anchor,
       radius, file_sstats, out_prefix, save_sstats, save_weighted_abfs,
       likelihood, analysis, need_qnorm, min_maf, file_covarpaths,
-      file_largegrid, file_smallgrid, file_prior, file_prior_scalar,
-      bfs, error_model, prop_cov_errors,
+      file_largegrid, file_smallgrid, bfs, error_model, prop_cov_errors,
       nb_permutations, seed, trick, trick_cutoff, perm_sep, permbf,
       use_max_bf, nb_threads, file_snpstokeep, subgroups_tokeep,
       write_group_size, verbose);

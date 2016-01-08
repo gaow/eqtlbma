@@ -134,7 +134,7 @@ namespace quantgen {
 			     const Grid & iGridL,
 			     const Grid & iGridS,
            const PriorMatrices & iPriorM,
-			     const std::string & whichBfs,
+           const std::vector<std::string> & whichBfs,
 			     const std::string & covErrors,
 			     const float & propFitSigma,
 			     const int & verbose);
