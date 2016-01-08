@@ -42,6 +42,8 @@ namespace quantgen {
     std::vector<double> oma2s_maxh;
     Grid();
     Grid(const std::string & gridFile, const bool & makeFixMaxh, const int & verbose);
+    Grid(const std::map<std::string, std::vector<std::vector<double> > > & priorData,
+         const std::string & gridName, const bool & makeFixMaxh, const int & verbose);
     size_t size (void) const { return phi2s.size(); }
   };
 
@@ -54,6 +56,10 @@ namespace quantgen {
     PriorMatrices(const std::string & file_pattern,
                   const std::string & scalar_file,
                   const size_t & matrix_dimension,
+                  const int & verbose);
+    PriorMatrices(const std::map<std::string, std::vector<std::vector<double> > > & priorData,
+                  const std::string & gridName,
+                  const std::vector<std::string> & excludeNames,
                   const int & verbose);
     size_t size (void) const { return Wgs.size(); }
     ~PriorMatrices() {

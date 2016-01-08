@@ -16,9 +16,8 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "quantgen/grid.hpp"
-
+#include <algorithm>
 using namespace std;
 
 using namespace utils;
@@ -66,8 +65,31 @@ namespace quantgen {
     }
   }
 
-  PriorMatrices::PriorMatrices(const std::string & file_pattern,
-                               const std::string & scalar_file,
+
+  Grid::Grid(const map<string, vector<vector<double> > > & priorData,
+             const string & gridName, const bool & makeFixMaxh, const int & verbose)
+  {
+    if (priorData.find(gridName) == priorData.end()) {
+      cerr << "ERROR: Cannot find key [" << gridName << "] in prior data input" << endl;
+      exit(EXIT_FAILURE);
+    }
+    for (size_t i = 0; i < priorData.at(gridName).size(); ++i) {
+      phi2s.push_back(priorData.at(gridName)[i][0]);
+      oma2s.push_back(priorData.at(gridName)[i][1]);
+      if (makeFixMaxh) {
+        phi2s_fix.push_back(0.0);
+        oma2s_fix.push_back(priorData.at(gridName)[i][0] + priorData.at(gridName)[i][1]);
+        phi2s_maxh.push_back(priorData.at(gridName)[i][0] + priorData.at(gridName)[i][1]);
+        oma2s_maxh.push_back(0.0);
+      }
+    }
+    if (verbose > 0)
+      cout << "grid size: " << phi2s.size() << endl;
+  }
+
+
+  PriorMatrices::PriorMatrices(const string & file_pattern,
+                               const string & scalar_file,
                                const size_t & matrix_dimension,
                                const int & verbose) {
     if (file_pattern.empty() || scalar_file.empty()) {
@@ -117,6 +139,7 @@ namespace quantgen {
       }
       closeFile(Wg_names[m], gridStream);
       Wgs.push_back(priorM);
+      gsl_matrix_free(priorM);
     }
     if (verbose > 0) {
         cout << "number of customized prior matrices: "
@@ -154,6 +177,72 @@ namespace quantgen {
         cout << "customized prior scalar grid size: " << Wg_scalars.size() << endl;
     }
 #ifdef DEBUG
+    for (size_t w = 0; w < Wg_scalars.size(); ++w)
+      cerr << Wg_scalars[w] << '\t';
+    cerr << endl;
+#endif
+  }
+
+  PriorMatrices::PriorMatrices(const map<string, vector<vector<double> > > & priorData,
+                  const string & gridName,
+                  const vector<string> & excludeNames,
+                  const int & verbose) {
+    if (priorData.find(gridName) == priorData.end()) {
+      cerr << "ERROR: Cannot find key [" << gridName << "] in prior data input" << endl;
+      exit(EXIT_FAILURE);
+    }
+    bool is_empty = true;
+    for (auto const &i : priorData) {
+      if (i.first != gridName &&
+          find(excludeNames.begin(), excludeNames.end(), i.first) == excludeNames.end()) {
+        is_empty = false;
+        break;
+      }
+    }
+    if (is_empty) return;
+
+    for (auto const &i : priorData) {
+      if (i.first != gridName &&
+          find(excludeNames.begin(), excludeNames.end(), i.first) == excludeNames.end()) {
+        // load prior matrix
+        Wg_names.push_back(i.first);
+        gsl_matrix * priorM = gsl_matrix_alloc(i.second.size(),
+                                               i.second.size());
+        for (size_t j = 0; j < i.second.size(); ++j) {
+          if (i.second[j].size() != i.second.size()) {
+            cerr << "ERROR: Prior matrix " << i.first << " is not square matrix!" << endl;
+            gsl_matrix_free(priorM);
+            exit(EXIT_FAILURE);
+          }
+          for (size_t k = 0; k < i.second[j].size(); ++k) {
+            gsl_matrix_set(priorM, j, k, i.second[j][k]);
+          }
+        }
+        Wgs.push_back(priorM);
+        gsl_matrix_free(priorM);
+      }
+      if (i.first == gridName) {
+        // load weights
+        if (i.second.size() != 1) {
+        cerr << "ERROR: Weight grids " << i.first
+             << " should be a 1-d vector of values"
+             << endl;
+        exit(EXIT_FAILURE);
+        }
+      Wg_scalars = i.second[0];
+      }
+    }
+    //
+    if (verbose > 0) {
+        cout << "number of customized prior matrices: "
+             << Wgs.size() << endl;
+        cout << "customized prior scalar grid size: " << Wg_scalars.size() << endl;
+    }
+#ifdef DEBUG
+    for (size_t m = 0; m < Wgs.size(); ++m) {
+      cerr<<"Wg" << m << "="<<endl;
+      utils::print_matrix(Wgs[m], Wgs[m]->size1, Wgs[m]->size2);
+    }
     for (size_t w = 0; w < Wg_scalars.size(); ++w)
       cerr << Wg_scalars[w] << '\t';
     cerr << endl;
