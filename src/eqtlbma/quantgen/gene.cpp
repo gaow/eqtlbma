@@ -332,13 +332,13 @@ namespace quantgen {
     }
   }
 
-  void Gene::CalculateVg(
+  void Gene::CalcSstatsHybrid(
     const vector<string> & subgroups,
     const Samples & samples,
     const Covariates & covariates,
     const bool & need_qnorm,
     const float & prop_cov_errors,
-    map<string, vector<vector<double> > > & Vgs)
+    map<string, vector<vector<double> > > & beta_n_cov)
   {
     const Snp * pt_snp = NULL;
     vector<GeneSnpPair>::iterator it_gsp;
@@ -347,8 +347,8 @@ namespace quantgen {
     for(size_t idx_snp = 0; idx_snp < snps_.size(); ++idx_snp){
 
       pt_snp = snps_[idx_snp];
- 			if (Vgs.find(pt_snp->name_) == Vgs.end())
-				Vgs[pt_snp->name_] = {};
+ 			if (beta_n_cov.find(pt_snp->name_) == beta_n_cov.end())
+				beta_n_cov[pt_snp->name_] = {};
       it_gsp = FindGeneSnpPair(idx_snp);
       perm = NULL;
       size_t S = subgroups.size();
@@ -357,10 +357,15 @@ namespace quantgen {
       * Vg = gsl_matrix_calloc(S, S);
       it_gsp->CalcSstatsHybrid(subgroups, samples, *this, *pt_snp, covariates, need_qnorm,
 		     prop_cov_errors, perm, betas_g_hat, Sigma_hat, Vg);
+      // collect beta
+      beta_n_cov[pt_snp->name_].push_back({});
+      for (size_t i = 0; i < betas_g_hat->size1; i++)
+        beta_n_cov[pt_snp->name_][0].push_back(gsl_matrix_get(betas_g_hat, i, 0));
+      // collect Vg
       for (size_t i = 0; i < Vg->size1; i++) {
-        Vgs[pt_snp->name_].push_back({});
+        beta_n_cov[pt_snp->name_].push_back({});
         for (size_t j = 0; j < Vg->size2; j++) {
-          Vgs[pt_snp->name_][i].push_back(gsl_matrix_get(Vg, i, j));
+          beta_n_cov[pt_snp->name_][i + 1].push_back(gsl_matrix_get(Vg, i, j));
         }
       }
       gsl_matrix_free(betas_g_hat);

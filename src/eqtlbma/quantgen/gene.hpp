@@ -124,13 +124,13 @@ namespace quantgen {
       const std::string & error_model);
     std::vector<GeneSnpPair>::iterator FindGeneSnpPair(
       const size_t & idx_snp);
-    void CalculateVg(
+    void CalcSstatsHybrid(
       const std::vector<std::string> & subgroups,
       const Samples & samples,
       const Covariates & covariates,
       const bool & need_qnorm,
       const float & prop_cov_errors,
-      std::map<std::string, std::vector<std::vector<double> > > & Vgs);
+      std::map<std::string, std::vector<std::vector<double> > > & beta_n_cov);
     void TestForAssociations(const bool & hasDataNotSstats,
 			     const std::vector<std::string> & subgroups,
 			     const Samples & samples,
